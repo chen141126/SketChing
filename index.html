@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>繪師進度管理 PWA (Phase 22)</title>
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon.png">
+    <title>繪師進度管理 PWA (Phase 25)</title>
     <!-- 引入 Confetti 特效庫 -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -258,7 +256,7 @@
         .sortable-item.drag-over-target { border: 2px dashed var(--primary-color); }
 
         /* FAB & Modals */
-        .fab-container { position: fixed; bottom: 24px; right: 24px; z-index: 80; display: flex; flex-direction: column; align-items: flex-end; width: auto; gap: 12px; transition: opacity 0.3s; }
+        .fab-container { position: fixed; bottom: 24px; right: 24px; z-index: 80; display: flex; flex-direction: column; align-items: center; gap: 12px; transition: opacity 0.3s; }
         .fab {
             width: 56px; height: 56px; background-color: var(--primary-color); color: white;
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
@@ -646,7 +644,7 @@
             <!-- Estimation Items -->
             <div class="settings-section">
                 <h3>
-                    品項(hr) 
+                    估價項目 
                     <button type="button" class="btn btn-secondary" style="padding:4px 10px; font-size:0.8rem;" onclick="window.addEstItem()">+ 新增</button>
                 </h3>
                 <div id="pgEstList"></div>
@@ -731,7 +729,7 @@
                 </div>
 
                 <div class="stats-card">
-                    <span class="stats-label">薪資條 (Real Hourly Rate)</span>
+                    <span class="stats-label">時薪大實話 (Real Hourly Rate)</span>
                     <div class="stats-val-big" id="statsRealHourly" style="margin-bottom:8px;">$0 / hr</div>
                     
                     <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#888;">
@@ -1147,8 +1145,14 @@
                 </div>
                 <div id="multiTagContainer" class="multi-tag-container"></div>
 
-                <label style="margin-top:12px; display:block;">品項 (自動加總)</label>
-                <div class="checkbox-group" id="newTaskItemsContainer"></div>
+                <div style="background:#F5F5F5; padding:10px; border-radius:8px; margin:10px 0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <label style="margin:0;">人數 (倍率)</label>
+                        <input type="number" id="newTaskCharCount" value="1" min="1" class="form-control" style="width:80px; margin:0; text-align:center;" onchange="window.updateEstimatedHours()">
+                    </div>
+                    <label style="margin-top:0; display:block; font-size:0.85rem; color:#666;">品項 (自動加總)</label>
+                    <div class="checkbox-group" id="newTaskItemsContainer"></div>
+                </div>
                 
                 <!-- Sub-Items View Only Section -->
                 <label style="margin-top:16px; margin-bottom:8px; display:block;">執行子項目</label>
@@ -1519,16 +1523,38 @@
         // Estimation Items CRUD
         window.renderEstList = function() {
             const container = document.getElementById('pgEstList');
-            container.innerHTML = appData.settings.workItems.map((it, i) => `
+            container.innerHTML = appData.settings.workItems.map((it, i) => {
+                const isMulti = it.isMultipliable !== false; // Default true if undefined (Migration)
+                const btnStyle = isMulti 
+                    ? 'color:#1565C0; border-color:#1565C0; background:#E3F2FD;' 
+                    : 'color:#999; border-color:#ccc; background:transparent;';
+                const btnText = isMulti 
+                    ? '<i class="fa-solid fa-user-group"></i> xN' 
+                    : '<i class="fa-regular fa-image"></i> 固定';
+                
+                return `
                 <div class="settings-item-row">
+                    <button type="button" class="btn" style="padding:6px 10px; font-size:0.8rem; flex-shrink:0; ${btnStyle}" onclick="window.toggleEstMulti(${i})">
+                        ${btnText}
+                    </button>
                     <input value="${it.name}" onchange="appData.settings.workItems[${i}].name=this.value" class="form-control" style="margin:0;flex:2">
                     <input type="number" id="estHours-${i}" value="${it.hours}" onchange="appData.settings.workItems[${i}].hours=parseFloat(this.value)" class="form-control" style="margin:0;flex:1">
                     <button type="button" class="icon-btn" style="color:red;" onclick="window.deleteEstItem(${i})"><i class="fa-solid fa-trash"></i></button>
                 </div>
-            `).join('');
+            `}).join('');
         };
+        
+        window.toggleEstMulti = function(idx) {
+            if (appData.settings.workItems[idx].isMultipliable === undefined) {
+                appData.settings.workItems[idx].isMultipliable = true; // init logic
+            }
+            appData.settings.workItems[idx].isMultipliable = !appData.settings.workItems[idx].isMultipliable;
+            saveData();
+            window.renderEstList();
+        };
+
         window.addEstItem = function() {
-            appData.settings.workItems.push({name:'', hours:1});
+            appData.settings.workItems.push({name:'', hours:1, isMultipliable: true});
             saveData();
             window.renderEstList();
         };
@@ -2542,8 +2568,10 @@
             dailyWorkHours: 8,
             monthlyQuota: 4,
             workItems: [
-                { name: "頭像", hours: 4 }, { name: "半身", hours: 6 },
-                { name: "全身", hours: 12 }, { name: "背景", hours: 4 }
+                { name: "頭像", hours: 4, isMultipliable: true }, 
+                { name: "半身", hours: 6, isMultipliable: true },
+                { name: "全身", hours: 12, isMultipliable: true }, 
+                { name: "背景", hours: 4, isMultipliable: false }
             ],
             tags: [ { id: 1, name: "急件", color: "#FFEBEE" }, { id: 2, name: "一般", color: "#E3F2FD" } ],
             subItemTemplates: [
@@ -3467,7 +3495,7 @@
         };
         window.closeModal = function(id) { document.getElementById(id).classList.remove('active'); };
 
-        // --- MISSING CORE TASK LOGIC (Restored Phase 20 Definitions) ---
+        // --- MISSING CORE TASK LOGIC (Restored Phase 23 Definitions) ---
 
         window.openEditModal = function(id = null) {
             const isNew = !id;
@@ -3476,6 +3504,10 @@
             
             const t = isNew ? null : appData.tasks.find(x => x.id === id);
             const selectedIndices = t && t.selectedItemIndices ? t.selectedItemIndices : [];
+
+            // Phase 25: Set Character Count Input
+            const charCount = t ? (t.characterCount || 1) : 1;
+            document.getElementById('newTaskCharCount').value = charCount;
 
             const itemsContainer = document.getElementById('newTaskItemsContainer');
             itemsContainer.innerHTML = appData.settings.workItems.map((item, i) => {
@@ -3513,9 +3545,23 @@
         };
 
         window.updateEstimatedHours = function() {
+            // Phase 25: Multiplier Logic
+            const charCount = parseInt(document.getElementById('newTaskCharCount').value) || 1;
             const checks = document.querySelectorAll('#newTaskItemsContainer input:checked');
             let total = 0;
-            checks.forEach(c => total += parseFloat(c.value));
+            
+            checks.forEach(c => {
+                const idx = parseInt(c.id.split('-')[1]);
+                const item = appData.settings.workItems[idx];
+                
+                let hours = parseFloat(item.hours);
+                // Apply multiplier if allowed (default to true if undefined)
+                if (item.isMultipliable !== false) {
+                    hours *= charCount;
+                }
+                total += hours;
+            });
+            
             document.getElementById('newTaskHours').value = total;
             window.updateHourlyRate();
         };
@@ -3567,6 +3613,7 @@
             const deadline = document.getElementById('newTaskDeadline').value;
             const notes = document.getElementById('newTaskNotes').value;
             const startDate = document.getElementById('newTaskStartDate').value;
+            const charCount = parseInt(document.getElementById('newTaskCharCount').value) || 1;
             
             const selectedTagIds = Array.from(document.querySelectorAll('#multiTagContainer input:checked')).map(cb => parseInt(cb.value));
             const selectedItemIndices = Array.from(document.querySelectorAll('#newTaskItemsContainer input:checked')).map(cb => parseInt(cb.id.split('-')[1]));
@@ -3580,6 +3627,7 @@
                 t.manualStartDate = startDate; t.locked = !!startDate;
                 t.subItems = window.tempSubItems;
                 t.selectedItemIndices = selectedItemIndices;
+                t.characterCount = charCount;
             } else {
                 const maxP = appData.tasks.length > 0 ? Math.max(...appData.tasks.map(t => t.priorityOrder || 0)) : 0;
                 appData.tasks.push({
@@ -3592,7 +3640,8 @@
                     status: 'active',
                     loggedHours: 0,
                     subItems: window.tempSubItems,
-                    selectedItemIndices: selectedItemIndices
+                    selectedItemIndices: selectedItemIndices,
+                    characterCount: charCount
                 });
             }
             calculateSchedule(); window.closeModal('addTaskModal');
@@ -3713,5 +3762,3 @@
     </script>
 </body>
 </html>
-
-
