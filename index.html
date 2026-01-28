@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>繪師進度管理 PWA (Phase 22)</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.png">
     <!-- 引入 Confetti 特效庫 -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -729,7 +731,7 @@
                 </div>
 
                 <div class="stats-card">
-                    <span class="stats-label">薪資條 (Real Hourly Rate)</span>
+                    <span class="stats-label">時薪大實話 (Real Hourly Rate)</span>
                     <div class="stats-val-big" id="statsRealHourly" style="margin-bottom:8px;">$0 / hr</div>
                     
                     <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#888;">
@@ -831,7 +833,7 @@
                 <div id="rewardBalanceList"></div>
             </div>
             <div style="padding: 0 20px 8px 20px; font-size:0.8rem; color:#888; font-weight:700; display:flex; justify-content:space-between;">
-                <span>明細</span>
+                <span>交易明細</span>
                 <span id="rewardLogFilterTag" style="display:none; color:var(--primary-color); cursor:pointer;" onclick="window.clearRewardFilter()"><i class="fa-solid fa-filter-circle-xmark"></i> 清除篩選</span>
             </div>
             <div id="rewardLogList" class="reward-log-container"></div>
@@ -1149,10 +1151,10 @@
                 <div class="checkbox-group" id="newTaskItemsContainer"></div>
                 
                 <!-- Sub-Items View Only Section -->
-                <label style="margin-top:16px; margin-bottom:8px; display:block;">子項目</label>
+                <label style="margin-top:16px; margin-bottom:8px; display:block;">執行子項目</label>
                 <div id="subItemViewList" class="sub-item-view-list"></div>
                 <button class="btn btn-secondary" style="width:100%; padding:8px; margin-bottom:16px; font-size:0.9rem;" onclick="window.openSubTaskEditModal()">
-                    <i class="fa-solid fa-list-check"></i> 編輯子項目
+                    <i class="fa-solid fa-list-check"></i> 編輯子項目流程
                 </button>
 
                 <div style="display:flex; gap:10px;">
@@ -1205,7 +1207,7 @@
             </div>
             <div class="modal-body">
                 <label>日期</label>
-                <input type="date" id="restDateInput" class="form-control">
+                <input type="date" id="restDateInput" class="form-control" onchange="window.updateRestQuotaInfo(this.value)">
                 
                 <div style="margin:10px 0; display:flex; align-items:center; gap:8px;">
                     <input type="checkbox" id="restFullDay" checked onchange="window.toggleRestTimeInput()">
@@ -3465,7 +3467,7 @@
         };
         window.closeModal = function(id) { document.getElementById(id).classList.remove('active'); };
 
-        // --- MISSING CORE TASK LOGIC (Restored Phase 23 Definitions) ---
+        // --- MISSING CORE TASK LOGIC (Restored Phase 20 Definitions) ---
 
         window.openEditModal = function(id = null) {
             const isNew = !id;
@@ -3711,3 +3713,5 @@
     </script>
 </body>
 </html>
+
+
