@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>繪師進度管理 PWA (Phase 22)</title>
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon.png"> 
     <!-- 引入 Confetti 特效庫 -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -314,6 +312,14 @@
         }
         .checkbox-pill input:checked + label { background: var(--primary-color); color: white; border-color: var(--primary-color); }
 
+        /* Phase 23: Dynamic Tag Selector styles */
+        .checkbox-pill.tag-item label { border-color: var(--tag-color); color: var(--tag-color); }
+        .checkbox-pill.tag-item input:checked + label {
+            background-color: var(--tag-color) !important;
+            border-color: var(--tag-color) !important;
+            color: white !important;
+        }
+
         .multi-tag-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; margin-bottom: 12px; }
         .tag-pill-check { display: none; }
         .tag-pill-label {
@@ -615,7 +621,6 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
 <body>
 
@@ -639,7 +644,7 @@
             <!-- Estimation Items -->
             <div class="settings-section">
                 <h3>
-                    品項(h) 
+                    品項(hr) 
                     <button type="button" class="btn btn-secondary" style="padding:4px 10px; font-size:0.8rem;" onclick="window.addEstItem()">+ 新增</button>
                 </h3>
                 <div id="pgEstList"></div>
@@ -826,7 +831,7 @@
                 <div id="rewardBalanceList"></div>
             </div>
             <div style="padding: 0 20px 8px 20px; font-size:0.8rem; color:#888; font-weight:700; display:flex; justify-content:space-between;">
-                <span>交易明細</span>
+                <span>明細</span>
                 <span id="rewardLogFilterTag" style="display:none; color:var(--primary-color); cursor:pointer;" onclick="window.clearRewardFilter()"><i class="fa-solid fa-filter-circle-xmark"></i> 清除篩選</span>
             </div>
             <div id="rewardLogList" class="reward-log-container"></div>
@@ -1144,10 +1149,10 @@
                 <div class="checkbox-group" id="newTaskItemsContainer"></div>
                 
                 <!-- Sub-Items View Only Section -->
-                <label style="margin-top:16px; margin-bottom:8px; display:block;">執行子項目</label>
+                <label style="margin-top:16px; margin-bottom:8px; display:block;">子項目</label>
                 <div id="subItemViewList" class="sub-item-view-list"></div>
                 <button class="btn btn-secondary" style="width:100%; padding:8px; margin-bottom:16px; font-size:0.9rem;" onclick="window.openSubTaskEditModal()">
-                    <i class="fa-solid fa-list-check"></i> 編輯子項目流程
+                    <i class="fa-solid fa-list-check"></i> 編輯子項目
                 </button>
 
                 <div style="display:flex; gap:10px;">
@@ -3460,23 +3465,28 @@
         };
         window.closeModal = function(id) { document.getElementById(id).classList.remove('active'); };
 
-        // --- MISSING CORE TASK LOGIC (Restored Phase 20 Definitions) ---
+        // --- MISSING CORE TASK LOGIC (Restored Phase 23 Definitions) ---
 
         window.openEditModal = function(id = null) {
             const isNew = !id;
             document.getElementById('editTaskId').value = id || '';
             document.getElementById('modalTitleText').textContent = isNew ? '新增任務' : '編輯任務';
             
+            const t = isNew ? null : appData.tasks.find(x => x.id === id);
+            const selectedIndices = t && t.selectedItemIndices ? t.selectedItemIndices : [];
+
             const itemsContainer = document.getElementById('newTaskItemsContainer');
-            itemsContainer.innerHTML = appData.settings.workItems.map((item, i) => `
-                <div class="checkbox-pill">
-                    <input type="checkbox" id="item-${i}" value="${item.hours}" data-name="${item.name}" onchange="window.updateEstimatedHours()">
-                    <label for="item-${i}">${item.name}</label>
-                </div>
-            `).join('');
+            itemsContainer.innerHTML = appData.settings.workItems.map((item, i) => {
+                const isChecked = selectedIndices.includes(i) ? 'checked' : '';
+                return `
+                    <div class="checkbox-pill">
+                        <input type="checkbox" id="item-${i}" value="${item.hours}" data-name="${item.name}" ${isChecked} onchange="window.updateEstimatedHours()">
+                        <label for="item-${i}">${item.name} (${item.hours}hr)</label>
+                    </div>
+                `;
+            }).join('');
 
             if (!isNew) {
-                const t = appData.tasks.find(x => x.id === id);
                 document.getElementById('newTaskTitle').value = t.title;
                 document.getElementById('newTaskPrice').value = t.price || 0;
                 document.getElementById('newTaskHours').value = t.estimatedHours;
@@ -3520,9 +3530,9 @@
             container.innerHTML = appData.settings.tags.map(tag => {
                 const checked = selectedIds.includes(tag.id) ? 'checked' : '';
                 return `
-                    <div class="checkbox-pill">
+                    <div class="checkbox-pill tag-item" style="--tag-color: ${tag.color}">
                         <input type="checkbox" id="tagCheck-${tag.id}" value="${tag.id}" ${checked}>
-                        <label for="tagCheck-${tag.id}" style="border-color:${tag.color};">${tag.name}</label>
+                        <label for="tagCheck-${tag.id}">${tag.name}</label>
                     </div>
                 `;
             }).join('');
@@ -3557,6 +3567,7 @@
             const startDate = document.getElementById('newTaskStartDate').value;
             
             const selectedTagIds = Array.from(document.querySelectorAll('#multiTagContainer input:checked')).map(cb => parseInt(cb.value));
+            const selectedItemIndices = Array.from(document.querySelectorAll('#newTaskItemsContainer input:checked')).map(cb => parseInt(cb.id.split('-')[1]));
 
             if (!title || hours <= 0) { alert('請填寫完整資訊'); return; }
 
@@ -3566,6 +3577,7 @@
                 t.deadline = deadline; t.notes = notes; t.tagIds = selectedTagIds;
                 t.manualStartDate = startDate; t.locked = !!startDate;
                 t.subItems = window.tempSubItems;
+                t.selectedItemIndices = selectedItemIndices;
             } else {
                 const maxP = appData.tasks.length > 0 ? Math.max(...appData.tasks.map(t => t.priorityOrder || 0)) : 0;
                 appData.tasks.push({
@@ -3577,7 +3589,8 @@
                     priorityOrder: maxP + 1,
                     status: 'active',
                     loggedHours: 0,
-                    subItems: window.tempSubItems
+                    subItems: window.tempSubItems,
+                    selectedItemIndices: selectedItemIndices
                 });
             }
             calculateSchedule(); window.closeModal('addTaskModal');
@@ -3696,6 +3709,5 @@
 
         window.addEventListener('DOMContentLoaded', () => initData());
     </script>
-<script type="module" src="/index.tsx"></script>
 </body>
 </html>
