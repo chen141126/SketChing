@@ -3988,7 +3988,53 @@ function calculateSchedule() {
             calculateSchedule(); window.closeModal('restModal');
         };
 
-        window.addEventListener('DOMContentLoaded', () => initData());
+        // --- Phase 28: Calendar Swipe Gestures ---
+        function enableCalendarSwipe() {
+            const calendar = document.querySelector('.calendar-container');
+            if(!calendar) return;
+
+            let touchStartX = 0;
+            let touchStartY = 0;
+
+            calendar.addEventListener('touchstart', function(e) {
+                // 如果點擊的是任務條或死線旗標，就不啟動滑動換頁偵測 (避免衝突)
+                if (e.target.closest('.abs-task-bar') || e.target.closest('.deadline-flag')) return;
+                
+                touchStartX = e.changedTouches[0].screenX;
+                touchStartY = e.changedTouches[0].screenY;
+            }, {passive: true});
+
+            calendar.addEventListener('touchend', function(e) {
+                if (e.target.closest('.abs-task-bar') || e.target.closest('.deadline-flag')) return;
+
+                const touchEndX = e.changedTouches[0].screenX;
+                const touchEndY = e.changedTouches[0].screenY;
+                
+                handleSwipeGesture(touchStartX, touchStartY, touchEndX, touchEndY);
+            }, {passive: true});
+        }
+
+        function handleSwipeGesture(startX, startY, endX, endY) {
+            const diffX = endX - startX;
+            const diffY = endY - startY;
+            
+            // 判斷門檻：
+            // 1. 水平滑動距離必須 > 50px (避免誤觸)
+            // 2. 垂直移動距離必須 < 30px (確保使用者不是在上下捲動畫面)
+            if (Math.abs(diffX) > 50 && Math.abs(diffY) < 30) {
+                if (diffX > 0) {
+                    // 向右滑 -> 上個月
+                    window.changeMonth(-1);
+                } else {
+                    // 向左滑 -> 下個月
+                    window.changeMonth(1);
+                }
+            }
+        }
+        window.addEventListener('DOMContentLoaded', () => {
+            initData();
+            enableCalendarSwipe(); // ★ 加入這一行來啟動手勢
+        });
     </script>
 </body>
 </html>
