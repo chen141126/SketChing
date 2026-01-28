@@ -3035,6 +3035,8 @@
         };
 
         window.changeMonth = function(delta) {
+            // 先把日期歸零到 1 號，避免 1/30 加一個月變成 3/2 的問題
+            currentViewDate.setDate(1);
             currentViewDate.setMonth(currentViewDate.getMonth() + delta);
             renderCalendar();
         };
