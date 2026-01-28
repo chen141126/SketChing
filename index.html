@@ -1315,30 +1315,32 @@
                 
                 try {
                     const config = JSON.parse(configStr);
-                    if(config.apiKey && config.projectId) {
-                        // Init Firebase
+                    // ★ 防呆：確保 config 物件存在且有內容
+                    if(config && config.apiKey && config.projectId) {
                         this.app = initializeApp(config);
                         this.auth = getAuth(this.app);
                         this.db = getFirestore(this.app);
                         this.isReady = true;
                         
-                        // Listen for auth state
                         onAuthStateChanged(this.auth, (user) => {
                             this.user = user;
                             this.updateUI();
                         });
                         
                         // Populate Inputs
-                        document.getElementById('fbApiKey').value = config.apiKey;
-                        document.getElementById('fbAuthDomain').value = config.authDomain;
-                        document.getElementById('fbProjectId').value = config.projectId;
-                        document.getElementById('fbAppId').value = config.appId;
-                        
+                        const apiKeyEl = document.getElementById('fbApiKey');
+                        if(apiKeyEl) { // 防止元素還沒渲染
+                            document.getElementById('fbApiKey').value = config.apiKey || '';
+                            document.getElementById('fbAuthDomain').value = config.authDomain || '';
+                            document.getElementById('fbProjectId').value = config.projectId || '';
+                            document.getElementById('fbAppId').value = config.appId || '';
+                        }
                         console.log("CloudSync Initialized");
                     }
                 } catch(e) {
                     console.error("CloudSync Init Failed:", e);
-                    document.getElementById('fbConnectionStatus').textContent = "狀態: 設定錯誤";
+                    const statusEl = document.getElementById('fbConnectionStatus');
+                    if(statusEl) statusEl.textContent = "狀態: 設定檔損毀，請重新輸入";
                 }
             },
             
@@ -2667,7 +2669,7 @@
             return capacity;
         }
 
-        function calculateSchedule() {
+function calculateSchedule() {
             const mapStart = TODAY_STR; 
             const mapEnd = addDays(mapStart, 120);
             const range = getDatesInRange(mapStart, mapEnd);
@@ -2685,7 +2687,11 @@
                 let currentDay = task.manualStartDate || TODAY_STR; 
                 task.computedStartDate = currentDay;
                 
+                // ★ 防呆 1：鎖定任務的安全閥
+                let loopSafety = 0;
                 while(hoursNeeded > 0) {
+                    if(loopSafety++ > 365) { console.warn('Task scheduled too long:', task.title); break; } // 超過一年強制中斷
+
                     if (dateMap[currentDay] !== undefined) {
                         const cap = dateMap[currentDay];
                         const consume = Math.min(appData.settings.dailyWorkHours, hoursNeeded); 
@@ -2696,6 +2702,41 @@
                 }
                 task.computedEndDate = currentDay;
             });
+
+            const floatingTasks = appData.tasks
+                .filter(t => t.status === 'active' && !t.locked)
+                .sort((a, b) => a.priorityOrder - b.priorityOrder);
+
+            floatingTasks.forEach(task => {
+                let hoursNeeded = task.estimatedHours - (task.loggedHours || 0);
+                if (hoursNeeded <= 0) return;
+                let startFound = false;
+                let currentDayIdx = 0;
+                
+                // ★ 防呆 2：浮動任務不需要 while，因為它是遍歷 range 陣列，本身就是安全的
+                // 但我們要防止 currentDayIdx 超出範圍
+                while(currentDayIdx < range.length && hoursNeeded > 0) {
+                    const d = range[currentDayIdx];
+                    const cap = dateMap[d];
+                    if (cap > 0) {
+                        if (!startFound) { task.computedStartDate = d; startFound = true; }
+                        const work = Math.min(cap, hoursNeeded);
+                        dateMap[d] -= work;
+                        hoursNeeded -= work;
+                        if (hoursNeeded <= 0.01) { 
+                            task.computedEndDate = d; break; 
+                        }
+                    }
+                    currentDayIdx++;
+                }
+                // 如果排到最後一天還沒做完，標記為最後一天（避免 undefined）
+                if(!task.computedEndDate && startFound) task.computedEndDate = range[range.length-1];
+            });
+
+            saveData();
+            renderCalendar();
+            renderCurrentTask();
+        }
 
             const floatingTasks = appData.tasks
                 .filter(t => t.status === 'active' && !t.locked)
@@ -2727,14 +2768,36 @@
             renderCurrentTask();
         }
 
-        window.initData = function(reset = false) {
+window.initData = function(reset = false) {
             const saved = localStorage.getItem('painterApp_v9');
+            
             if (saved && !reset) {
-                appData = JSON.parse(saved);
-                if(!appData.settings.subItemTemplates) appData.settings.subItemTemplates = DEFAULT_SETTINGS.subItemTemplates;
-                if(!appData.rewardCategories) appData.rewardCategories = [];
-                if(!appData.rewardLogs) appData.rewardLogs = [];
+                try {
+                    // ★ 防呆：嘗試解析資料
+                    appData = JSON.parse(saved);
+                    
+                    // 檢查必要的結構是否存在（防止舊版資料導致錯誤）
+                    if(!appData.settings) throw new Error("Missing Settings");
+                    if(!appData.tasks) appData.tasks = [];
+                    
+                    // 補全可能缺少的欄位
+                    if(!appData.settings.subItemTemplates) appData.settings.subItemTemplates = DEFAULT_SETTINGS.subItemTemplates;
+                    if(!appData.rewardCategories) appData.rewardCategories = [];
+                    if(!appData.rewardLogs) appData.rewardLogs = [];
+                    
+                } catch (e) {
+                    console.error("Data corrupted, resetting...", e);
+                    alert("偵測到本機資料損毀，系統已自動修復（重置為預設值）。建議從雲端還原。");
+                    // 資料損毀時，強制重置
+                    appData = JSON.parse(JSON.stringify(DEFAULT_SETTINGS_FULL)); // 需定義 FULL 結構或直接用下面的邏輯
+                    resetToDefault(); // 呼叫下方的重置邏輯
+                }
             } else {
+                resetToDefault();
+            }
+            
+            // 獨立出重置邏輯，避免重複代碼
+            function resetToDefault() {
                 appData.settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
                 appData.tasks = [
                     { id: 't1', title: '示例任務', tagIds: [2], estimatedHours: 10, loggedHours: 0, status: 'active', priorityOrder: 1, selectedItemIndices: [] }
@@ -2744,6 +2807,21 @@
                 appData.rewardLogs = [];
                 calculateSchedule();
             }
+            
+            // Init Default Rewards if empty
+            if(appData.rewardCategories.length === 0) {
+                appData.rewardCategories = [
+                    { id: '1', name: '休假', unit: '天', icon: 'fa-umbrella-beach', color: '#f0f4c3' },
+                    { id: '2', name: '甜點', unit: '樣', icon: 'fa-ice-cream', color: '#f8bbd0' },
+                    { id: '3', name: '休息', unit: '小時', icon: 'fa-bed', color: '#e1bee7' }
+                ];
+                saveData();
+            }
+
+            window.renderSidebar();
+            renderCalendar();
+            renderCurrentTask();
+        };
             
             // Init Default Rewards if empty
             if(appData.rewardCategories.length === 0) {
