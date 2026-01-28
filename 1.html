@@ -3,10 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>sketch-ching</title>
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon_v3.png">
-    <link rel="icon" type="image/png" href="icon_v3.png">
+    <title>繪師進度管理 PWA (Phase 26)</title>
     <!-- 引入 Confetti 特效庫 -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -127,7 +124,7 @@
         .card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
         .tag-pill-small {
             font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; 
-            font-weight: 700; white-space: nowrap; color: #333;
+            font-weight: 700; white-space: nowrap; color: #4E342E;
         }
 
         .carousel-arrow {
@@ -259,7 +256,7 @@
         .sortable-item.drag-over-target { border: 2px dashed var(--primary-color); }
 
         /* FAB & Modals */
-        .fab-container { position: fixed; bottom: 24px; right: 24px; z-index: 80; display: flex; flex-direction: column; align-items: flex-end; width: auto; gap: 12px; transition: opacity 0.3s; }
+        .fab-container { position: fixed; bottom: 24px; right: 24px; z-index: 80; display: flex; flex-direction: column; align-items: center; gap: 12px; transition: opacity 0.3s; }
         .fab {
             width: 56px; height: 56px; background-color: var(--primary-color); color: white;
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
@@ -331,6 +328,18 @@
             background: var(--bg-color);
         }
         
+        /* Phase 26: Tag Manager Sortable */
+        .sortable-tag-item {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #FFF; border: 1px solid #EEE;
+            padding: 10px; border-radius: 8px; margin-bottom: 8px;
+            touch-action: none; transition: transform 0.1s, opacity 0.2s;
+        }
+        .sortable-tag-item.dragging { opacity: 0.5; background: #F5F5F5; }
+        .sortable-tag-item.drag-over-tag { border: 2px dashed var(--primary-color); }
+        .tag-drag-handle { padding: 0 10px 0 0; color: #BBB; cursor: grab; }
+        .tag-actions { display: flex; gap: 12px; align-items: center; }
+
         .sub-item-view-list { margin-bottom: 12px; border: 1px solid #EEE; border-radius: 8px; overflow: hidden; }
         .sub-item-view-row { 
             padding: 8px 12px; border-bottom: 1px solid #EEE; 
@@ -647,7 +656,7 @@
             <!-- Estimation Items -->
             <div class="settings-section">
                 <h3>
-                    品項 (hr) 
+                    估價項目 
                     <button type="button" class="btn btn-secondary" style="padding:4px 10px; font-size:0.8rem;" onclick="window.addEstItem()">+ 新增</button>
                 </h3>
                 <div id="pgEstList"></div>
@@ -732,7 +741,7 @@
                 </div>
 
                 <div class="stats-card">
-                    <span class="stats-label">薪資條 (Real Hourly Rate)</span>
+                    <span class="stats-label">時薪大實話 (Real Hourly Rate)</span>
                     <div class="stats-val-big" id="statsRealHourly" style="margin-bottom:8px;">$0 / hr</div>
                     
                     <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#888;">
@@ -834,7 +843,7 @@
                 <div id="rewardBalanceList"></div>
             </div>
             <div style="padding: 0 20px 8px 20px; font-size:0.8rem; color:#888; font-weight:700; display:flex; justify-content:space-between;">
-                <span>明細</span>
+                <span>交易明細</span>
                 <span id="rewardLogFilterTag" style="display:none; color:var(--primary-color); cursor:pointer;" onclick="window.clearRewardFilter()"><i class="fa-solid fa-filter-circle-xmark"></i> 清除篩選</span>
             </div>
             <div id="rewardLogList" class="reward-log-container"></div>
@@ -922,7 +931,7 @@
             <span id="headerMonthTitle">2026年 4月</span>
             <i class="fa-solid fa-chevron-right icon-btn" onclick="event.stopPropagation(); window.changeMonth(1)"></i>
         </div>
-        <button class="icon-btn" onclick="window.location.reload()"><i class="fa-solid fa-rotate-right"></i></button>
+        <button class="icon-btn" onclick="window.initData(true)"><i class="fa-solid fa-rotate-right"></i></button>
     </header>
 
     <div class="main-content main-content-element">
@@ -1148,7 +1157,7 @@
                 </div>
                 <div id="multiTagContainer" class="multi-tag-container"></div>
 
-                <div style="background:#FDFCF8; padding:10px; border-radius:8px; margin:10px 0;">
+                <div style="background:#F5F5F5; padding:10px; border-radius:8px; margin:10px 0;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                         <label style="margin:0;">人數 (倍率)</label>
                         <input type="number" id="newTaskCharCount" value="1" min="1" class="form-control" style="width:80px; margin:0; text-align:center;" onchange="window.updateEstimatedHours()">
@@ -1251,7 +1260,7 @@
                 <div style="display:flex; gap:8px; margin-bottom:15px;">
                     <input type="text" id="newTagName" class="form-control" placeholder="名稱" style="margin:0; flex:2;">
                     <input type="color" id="newTagColor" class="form-control" value="#E3F2FD" style="margin:0; flex:1; height:42px; padding:2px;">
-                    <button class="btn btn-primary" style="flex:1;" onclick="window.addTag()">新增</button>
+                    <button id="btnAddTag" class="btn btn-primary" style="flex:1;" onclick="window.addTag()">新增</button>
                 </div>
                 <div id="tagListContainer"></div>
             </div>
@@ -1447,6 +1456,7 @@
         window.tempTagIds = [];
         window.currentEditingTemplateId = null;
         window.deleteTemplateTargetId = null;
+        window.editingTagId = null;
         
         // Phase 19: Navigation State
         window.settingsSourcePage = 'home';
@@ -1473,6 +1483,27 @@
             isGlassHeart: false,
             activeTab: 'economy' // 'economy' or 'performance'
         };
+
+        // Phase 26: Color Contrast Helper
+        window.getTextColorForBg = function(hex) {
+            if (!hex) return '#222021';
+            // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
+            var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+            hex = hex.replace(shorthandRegex, function(m, r, g, b) {
+                return r + r + g + g + b + b;
+            });
+
+            var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            if (!result) return '#222021';
+
+            var r = parseInt(result[1], 16);
+            var g = parseInt(result[2], 16);
+            var b = parseInt(result[3], 16);
+
+            // YIQ equation
+            var yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+            return (yiq >= 128) ? '#222021' : '#FFFFFF';
+        }
         
         // --- PHASE 11 & 15: SETTINGS PAGE & TEMPLATE FUNCTIONS ---
         
@@ -2847,8 +2878,11 @@
                         if(task.locked) bar.innerHTML = `<i class="fa-solid fa-lock" style="font-size:0.6rem; margin-right:4px;"></i>` + bar.textContent;
                     }
                     
-                    bar.style.backgroundColor = tag ? tag.color : '#eee';
-                    bar.style.color = (tag && tag.id==1) ? 'var(--tag-text-urgent)' : 'var(--tag-text-normal)';
+                    // Phase 26: Smart Text Color
+                    const tagBg = tag ? tag.color : '#eee';
+                    bar.style.backgroundColor = tagBg;
+                    bar.style.color = window.getTextColorForBg(tagBg);
+                    
                     bar.style.left = `calc(${(startIdx/7)*100}% + 2px)`;
                     bar.style.width = `calc(${((endIdx-startIdx+1)/7)*100}% - 4px)`;
                     bar.style.top = `${vRow * 24}px`;
@@ -3035,8 +3069,6 @@
         };
 
         window.changeMonth = function(delta) {
-            // 先把日期歸零到 1 號，避免 1/30 加一個月變成 3/2 的問題
-            currentViewDate.setDate(1);
             currentViewDate.setMonth(currentViewDate.getMonth() + delta);
             renderCalendar();
         };
@@ -3077,7 +3109,11 @@
             const taskTagIds = task.tagIds || [];
             const tagsHtml = taskTagIds.map(id => {
                 const tag = appData.settings.tags.find(g => g.id == id);
-                if(tag) return `<div class="tag-pill-small" style="background:${tag.color}">${tag.name}</div>`;
+                if(tag) {
+                    // Phase 26: Smart Text Color
+                    const textColor = window.getTextColorForBg(tag.color);
+                    return `<div class="tag-pill-small" style="background:${tag.color}; color:${textColor}">${tag.name}</div>`;
+                }
                 return '';
             }).join('');
 
@@ -3276,38 +3312,186 @@
              }
         };
 
+        // --- Tag Manager Logic Overhaul ---
         window.openTagManager = function() {
-            const container = document.getElementById('tagListContainer');
-            container.innerHTML = appData.settings.tags.map(tag => `
-                <div style="display:flex; justify-content:space-between; margin-bottom:8px; align-items:center; border-bottom:1px dashed #eee; padding-bottom:4px;">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <div style="width:16px; height:16px; background:${tag.color}; border-radius:4px;"></div>
-                        <span>${tag.name}</span>
-                    </div>
-                    <i class="fa-solid fa-trash" style="color:red; cursor:pointer;" onclick="deleteTag(${tag.id})"></i>
-                </div>
-            `).join('');
+            window.editingTagId = null; // Reset state
+            document.getElementById('newTagName').value = '';
+            document.getElementById('newTagColor').value = '#E3F2FD';
+            document.getElementById('btnAddTag').textContent = '新增';
+            
+            window.renderTagList();
             window.openModal('tagManagerModal');
         };
-        window.addTag = function() {
-            const name = document.getElementById('newTagName').value;
-            const color = document.getElementById('newTagColor').value;
-            if(name) {
-                appData.settings.tags.push({ id: Date.now(), name, color });
-                window.openTagManager();
-                if(document.getElementById('addTaskModal').classList.contains('active')) {
-                     const container = document.getElementById('multiTagContainer');
-                     const currentIds = Array.from(container.querySelectorAll('input:checked')).map(cb => cb.value);
-                     populateMultiTag(currentIds);
+
+        window.renderTagList = function() {
+            const container = document.getElementById('tagListContainer');
+            container.innerHTML = appData.settings.tags.map((tag, idx) => {
+                const textColor = window.getTextColorForBg(tag.color);
+                return `
+                    <div class="sortable-tag-item" data-id="${tag.id}" data-index="${idx}">
+                        <div style="display:flex; align-items:center; gap:8px; flex:1;">
+                            <i class="fa-solid fa-bars tag-drag-handle"></i>
+                            <div style="width:20px; height:20px; background:${tag.color}; border-radius:4px; border:1px solid rgba(0,0,0,0.1);"></div>
+                            <span style="font-weight:600; color:#333;">${tag.name}</span>
+                        </div>
+                        <div class="tag-actions">
+                            <i class="fa-solid fa-pen" style="color:#666; cursor:pointer;" onclick="window.editTag(${tag.id})"></i>
+                            <i class="fa-solid fa-trash" style="color:#EF5350; cursor:pointer;" onclick="window.deleteTag(${tag.id})"></i>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Initialize drag logic
+            document.querySelectorAll('.sortable-tag-item').forEach(el => {
+                window.initTagSort(el);
+            });
+        };
+
+        window.initTagSort = function(element) {
+            let ghost = null;
+            let startX = 0;
+            let startY = 0;
+            let isDragging = false;
+            let handle = element.querySelector('.tag-drag-handle');
+
+            handle.addEventListener('touchstart', (e) => {
+                if(e.touches.length > 1) return;
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                isDragging = false;
+            }, {passive: true});
+
+            handle.addEventListener('touchmove', (e) => {
+                const touch = e.touches[0];
+                const moveX = touch.clientX - startX;
+                const moveY = touch.clientY - startY;
+                const dist = Math.sqrt(moveX*moveX + moveY*moveY);
+
+                if (!isDragging && dist > 10) {
+                    isDragging = true;
+                    ghost = element.cloneNode(true);
+                    ghost.classList.add('dragging');
+                    ghost.style.position = 'absolute';
+                    ghost.style.width = element.offsetWidth + 'px';
+                    ghost.style.zIndex = '9999';
+                    document.body.appendChild(ghost);
+                    element.style.opacity = '0.3';
                 }
+
+                if(isDragging) {
+                    e.preventDefault();
+                    if(ghost) {
+                        ghost.style.top = (touch.clientY - 20) + 'px';
+                        ghost.style.left = (touch.clientX - 20) + 'px';
+                        
+                        ghost.style.display = 'none';
+                        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                        ghost.style.display = 'flex';
+                        
+                        document.querySelectorAll('.sortable-tag-item').forEach(el => el.classList.remove('drag-over-tag'));
+                        const targetItem = target?.closest('.sortable-tag-item');
+                        if(targetItem && targetItem !== element) {
+                            targetItem.classList.add('drag-over-tag');
+                        }
+                    }
+                }
+            }, {passive: false});
+
+            handle.addEventListener('touchend', (e) => {
+                 if (isDragging) {
+                    const touch = e.changedTouches[0];
+                    if(ghost) ghost.remove();
+                    element.style.opacity = '1';
+                    
+                    // Hide ghost temporarily to find target underneath
+                    if(ghost) ghost.style.display = 'none';
+                    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                    
+                    const targetItem = target?.closest('.sortable-tag-item');
+                    if(targetItem && targetItem !== element) {
+                        const fromIdx = parseInt(element.getAttribute('data-index'));
+                        const toIdx = parseInt(targetItem.getAttribute('data-index'));
+                        
+                        if(fromIdx !== toIdx) {
+                             const moved = appData.settings.tags.splice(fromIdx, 1)[0];
+                             appData.settings.tags.splice(toIdx, 0, moved);
+                             saveData();
+                             window.renderTagList();
+                        }
+                    }
+                    document.querySelectorAll('.sortable-tag-item').forEach(el => el.classList.remove('drag-over-tag'));
+                    isDragging = false;
+                    ghost = null;
+                 }
+            });
+        };
+
+        window.addTag = function() {
+            const name = document.getElementById('newTagName').value.trim();
+            const color = document.getElementById('newTagColor').value;
+            const btn = document.getElementById('btnAddTag');
+
+            if(!name) return;
+
+            if (window.editingTagId) {
+                // Update Existing
+                const t = appData.settings.tags.find(x => x.id === window.editingTagId);
+                if(t) {
+                    t.name = name;
+                    t.color = color;
+                }
+                window.editingTagId = null;
+                btn.textContent = '新增';
+            } else {
+                // Create New
+                appData.settings.tags.push({ id: Date.now(), name, color });
+            }
+            
+            // Reset Inputs
+            document.getElementById('newTagName').value = '';
+            document.getElementById('newTagColor').value = '#E3F2FD';
+            
+            saveData();
+            window.renderTagList();
+            
+            // Live update if adding from task modal
+            if(document.getElementById('addTaskModal').classList.contains('active')) {
+                 const container = document.getElementById('multiTagContainer');
+                 const checkedInputs = container.querySelectorAll('input:checked');
+                 const currentIds = Array.from(checkedInputs).map(cb => parseInt(cb.value));
+                 populateMultiTag(currentIds);
             }
         };
+
+        window.editTag = function(id) {
+            const t = appData.settings.tags.find(x => x.id === id);
+            if(!t) return;
+            document.getElementById('newTagName').value = t.name;
+            document.getElementById('newTagColor').value = t.color;
+            window.editingTagId = id;
+            document.getElementById('btnAddTag').textContent = '更新';
+        };
+
         window.deleteTag = function(id) {
+            if(!confirm('確定刪除此標籤？')) return;
             appData.settings.tags = appData.settings.tags.filter(t => t.id !== id);
-            window.openTagManager();
+            saveData();
+            window.renderTagList();
+            
+            // If editing this one, cancel edit
+            if(window.editingTagId === id) {
+                window.editingTagId = null;
+                document.getElementById('newTagName').value = '';
+                document.getElementById('btnAddTag').textContent = '新增';
+            }
+
             const container = document.getElementById('multiTagContainer');
-            const currentIds = Array.from(container.querySelectorAll('input:checked')).map(cb => cb.value);
-            populateMultiTag(currentIds);
+            if(container) {
+                const checkedInputs = container.querySelectorAll('input:checked');
+                const currentIds = Array.from(checkedInputs).map(cb => parseInt(cb.value)).filter(tid => tid !== id);
+                populateMultiTag(currentIds);
+            }
         };
 
         // Phase 18 Fix: Proper navigation reset
@@ -3341,7 +3525,9 @@
                 ids.map(id => {
                     const t = appData.settings.tags.find(x => x.id == id);
                     if(!t) return '';
-                    return `<span style="font-size:0.65rem; padding:2px 6px; border-radius:4px; background:${t.color}; color:#333; font-weight:700;">${t.name}</span>`;
+                    // Phase 26: Smart Text Color
+                    const textColor = window.getTextColorForBg(t.color);
+                    return `<span style="font-size:0.65rem; padding:2px 6px; border-radius:4px; background:${t.color}; color:${textColor}; font-weight:700;">${t.name}</span>`;
                 }).join('') + 
             `</div>`;
         }
