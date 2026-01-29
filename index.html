@@ -1243,6 +1243,8 @@
                         <input type="time" id="restEnd" class="form-control" value="13:00">
                     </div>
                 </div>
+                <label>行程名稱 (選填)</label>
+                <input type="text" id="restTitleInput" class="form-control" placeholder="例如：去動物園、聚餐">
                 
                 <div id="restQuotaInfo" style="background:#E3F2FD; color:#1565C0; padding:10px; border-radius:8px; font-size:0.9rem;">
                     <!-- Content Injected via JS -->
@@ -2849,11 +2851,33 @@ function calculateSchedule() {
                     cell.addEventListener('dragover', (e) => { e.preventDefault(); cell.classList.add('drag-over'); });
                     cell.addEventListener('dragleave', () => cell.classList.remove('drag-over'));
                     cell.addEventListener('drop', handleCalendarDrop);
-
+                    
                     let dayNumClass = 'day-number';
                     if(dateStr === TODAY_STR) dayNumClass += ' today-circle';
 
                     let html = `<div class="${dayNumClass}">${dObj.getDate()}</div>`;
+                    
+                    // ★ 新增：休息日備註 (絕對定位在底部)
+                    if (rest && rest.title) {
+                        html += `<div style="
+                            position: absolute; 
+                            bottom: 4px; 
+                            left: 2px; 
+                            right: 2px; 
+                            font-size: 0.75rem; 
+                            color: #2E7D32; 
+                            font-weight: 700; 
+                            text-align: center; 
+                            line-height: 1.2; 
+                            white-space: nowrap; 
+                            overflow: hidden; 
+                            text-overflow: ellipsis; 
+                            z-index: 0; 
+                            pointer-events: none;
+                        ">
+                            ${rest.title}
+                        </div>`;
+                    }
                     
                     const dls = appData.tasks.filter(t => t.deadline === dateStr);
                     if(dls.length > 0) {
@@ -3878,11 +3902,14 @@ function calculateSchedule() {
         };
 
         // --- Rest Day Logic ---
-
+        
         window.openRestModal = function(dateStr = TODAY_STR) {
             const rest = appData.restDays.find(r => r.date === dateStr);
             document.getElementById('restDateInput').value = dateStr;
             document.getElementById('btnDeleteRest').style.display = rest ? 'block' : 'none';
+            
+            // ★ 新增：讀取標題 (如果有存過的話)
+            document.getElementById('restTitleInput').value = (rest && rest.title) ? rest.title : '';
             
             if (rest) {
                 document.getElementById('restFullDay').checked = rest.isFullDay;
@@ -3970,15 +3997,18 @@ function calculateSchedule() {
             
             el.innerHTML = html;
         };
-
+        
         window.submitRestDay = function() {
             const date = document.getElementById('restDateInput').value;
             const isFullDay = document.getElementById('restFullDay').checked;
             const start = document.getElementById('restStart').value;
             const end = document.getElementById('restEnd').value;
+            // ★ 新增：取得輸入的標題
+            const title = document.getElementById('restTitleInput').value.trim();
             
             appData.restDays = appData.restDays.filter(r => r.date !== date);
-            appData.restDays.push({ date, isFullDay, start, end });
+            // ★ 新增：把 title 存進去
+            appData.restDays.push({ date, isFullDay, start, end, title });
             calculateSchedule(); window.closeModal('restModal');
         };
 
