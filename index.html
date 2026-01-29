@@ -3905,8 +3905,12 @@ function calculateSchedule() {
         };
 
         // --- Rest Day Logic ---
-        
+        // 定義一個全域變數來暫存「編輯前的日期」
+        window.editingRestDate = null;
         window.openRestModal = function(dateStr = TODAY_STR) {
+            // ★ Bug修復：記住原始日期，這樣修改日期時才能刪掉舊的
+            window.editingRestDate = dateStr;
+            
             const rest = appData.restDays.find(r => r.date === dateStr);
             document.getElementById('restDateInput').value = dateStr;
             document.getElementById('btnDeleteRest').style.display = rest ? 'block' : 'none';
@@ -4002,17 +4006,28 @@ function calculateSchedule() {
         };
         
         window.submitRestDay = function() {
-            const date = document.getElementById('restDateInput').value;
+            const date = document.getElementById('restDateInput').value; // 這是新日期
             const isFullDay = document.getElementById('restFullDay').checked;
             const start = document.getElementById('restStart').value;
             const end = document.getElementById('restEnd').value;
-            // ★ 新增：取得輸入的標題
+            
+            // ★ Phase 29：取得輸入的標題
             const title = document.getElementById('restTitleInput').value.trim();
             
+            // ★ Bug修復：先刪除「原始日期」的資料 (解決變成複製的問題)
+            if (window.editingRestDate) {
+                appData.restDays = appData.restDays.filter(r => r.date !== window.editingRestDate);
+            }
+            
+            // 再刪除「新日期」可能存在的資料 (防止同一天有兩筆，雖然通常不會發生)
             appData.restDays = appData.restDays.filter(r => r.date !== date);
-            // ★ 新增：把 title 存進去
+
+            // 儲存新資料
             appData.restDays.push({ date, isFullDay, start, end, title });
-            calculateSchedule(); window.closeModal('restModal');
+            
+            calculateSchedule(); 
+            window.closeModal('restModal');
+            window.editingRestDate = null; // 重置
         };
 
         window.deleteRestDay = function() {
