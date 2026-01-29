@@ -1,5 +1,5 @@
 {
-  "name": "Sketch-Ching",
+  "name": "SketChing",
   "short_name": "SketChing",
   "description": "自由插畫師的工時與獎勵管理助手",
   "start_url": "./index.html",
@@ -16,6 +16,7 @@
   ]
 
 }
+
 
 
 
