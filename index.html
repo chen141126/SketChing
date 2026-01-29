@@ -2857,22 +2857,25 @@ function calculateSchedule() {
 
                     let html = `<div class="${dayNumClass}">${dObj.getDate()}</div>`;
                     
-                    // ★ 新增：休息日備註 (絕對定位在底部)
+                    // ★ 修改這裡：調整樣式 (更小、更細、自動換行)
                     if (rest && rest.title) {
                         html += `<div style="
-                            position: absolute; 
-                            bottom: 4px; 
-                            left: 2px; 
-                            right: 2px; 
-                            font-size: 0.75rem; 
-                            color: #2E7D32; 
-                            font-weight: 700; 
-                            text-align: center; 
-                            line-height: 1.2; 
-                            white-space: nowrap; 
-                            overflow: hidden; 
-                            text-overflow: ellipsis; 
-                            z-index: 0; 
+                            position: absolute;
+                            bottom: 2px;              /* 靠底距離稍微縮小，爭取空間 */
+                            left: 2px;
+                            right: 2px;
+                            font-size: 0.65rem;       /* ★ 字體縮小 (原本 0.75rem) */
+                            color: #1B5E20;           /* 改用更深一點的綠色，因為字變細了，深色才清楚 */
+                            font-weight: 400;         /* ★ 改為標準粗細 (原本 700) */
+                            text-align: center;
+                            line-height: 1.1;         /* 行距縮小，讓多行文字比較緊湊 */
+                            /* ★ 自動換行設定 */
+                            white-space: normal;      /* 允許換行 */
+                            word-break: break-all;    /* 強制長單字換行 */
+                            overflow: hidden;         /* 雖然允許換行，但超出格子還是要藏起來 */
+                            max-height: 2.4em;        /* 限制最多顯示約 2 行，避免蓋到上面的日期 */
+                        
+                            z-index: 0;
                             pointer-events: none;
                         ">
                             ${rest.title}
