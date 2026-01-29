@@ -1,1 +1,1 @@
-# sketch-ching
+# SketChing
