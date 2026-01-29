@@ -9,13 +9,14 @@
   "icons": [
     {
       "src": "icon_v2.png",
-      "sizes": "2048x2048",
+      "sizes": "512x512",
       "type": "image/png"
       "purpose": "any maskable"
     }
   ]
 
 }
+
 
 
 
