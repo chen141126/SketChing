@@ -632,36 +632,41 @@
         }
 
         /* --- PHASE 21: STATS PAGE CSS --- */
+        /* 1. 控制列本體：確保高度固定且內容置中 */
         .stats-control-bar {
             display: flex; 
             justify-content: space-between; 
-            align-items: center;
+            align-items: center; /* ★ 確保垂直置中 */
             
-            /* ★ 修改 1：上下內距歸零 (原本 4px 或 10px) */
-            padding: 0; 
-            
-            /* ★ 修改 2：設定固定高度，確保它不會被內容撐太高 */
-            height: 42px; 
+            padding: 0 4px;      /* 左右留一點點呼吸空間，上下歸零 */
+            height: 42px;        /* 固定高度 */
             
             border-bottom: 1px solid rgba(0,0,0,0.05); 
-            margin-bottom: 8px;
+            margin-bottom: 0;    /* ★ 移除下邊距，讓它跟下面內容緊湊點 */
+            margin-top: -10px;   /* ★ 關鍵：往上提！抵消 page-body 的部分內距，消除上方的空洞感 */
         }
 
-        /* ★ 新增：強制縮小這一列裡面的按鈕 */
+        /* 2. 強制縮小並置中按鈕 */
         .stats-control-bar .icon-btn {
-            padding: 0 !important;   /* 移除按鈕內距 */
-            width: 36px;             /* 設定固定寬度 */
-            height: 36px;            /* 設定固定高度 */
-            font-size: 1rem;         /* 圖示稍微縮小 (原本 1.2rem) */
+            padding: 0 !important;
+            width: 36px;
+            height: 36px;
+            font-size: 1rem;
             display: flex; 
             align-items: center; 
             justify-content: center;
         }
-        
-        /* ★ 新增：縮小左右切換的小箭頭按鈕 */
-        .stats-control-bar .icon-btn-small {
-            padding: 4px !important;
+
+        /* 3. ★ 關鍵：收緊日期文字的行高，讓它真正垂直置中 */
+        #statsDateDisplay {
+            line-height: 1.1 !important; /* 收緊行距 */
+            margin-bottom: 0 !important; /* 確保沒有下邊距 */
+            margin-top: 2px;             /* 微調：因為字體特性，通常要往下壓 1-2px 視覺才會正 */
         }
+        #statsViewModeDisplay {
+            line-height: 1 !important;
+        }
+        
         .stats-card {
             background: #FFF; border-radius: 16px; padding: 16px; margin-bottom: 16px;
             box-shadow: var(--shadow-sm); border: 1px solid rgba(0,0,0,0.02);
