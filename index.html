@@ -1764,6 +1764,8 @@
             document.querySelectorAll('.main-content-element').forEach(el => el.style.display = 'none');
             document.getElementById('rewardPage').style.display = 'none';
             document.getElementById('statsPage').style.display = 'flex';
+            // ★ 新增這行：強制切換到「戰鬥數值 (performance)」
+            window.switchStatsTab('economy');
             window.renderStats();
         };
 
