@@ -4042,7 +4042,7 @@ function calculateSchedule() {
             appData.restDays = appData.restDays.filter(r => r.date !== date);
 
             // 儲存新資料
-            appData.restDays.push({ date, isFullDay, start, end, title, isSketch });
+            appData.restDays.push({ date, isFullDay, start, end, title });
             
             calculateSchedule(); 
             window.closeModal('restModal');
