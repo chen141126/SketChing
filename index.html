@@ -983,17 +983,9 @@
         <div class="celebration-stat" id="celebrationStat">比預期早 2.0 小時</div>
         <div style="margin-top:20px; color:#888; font-size:0.9rem;">(點擊畫面任意處關閉)</div>
     </div>
-
+    
     <div class="fab-container main-content-element">
-        <div class="fab-menu" id="fabMenu">
-            <button class="fab-mini-btn" onclick="window.openEditModal(); window.toggleFab();">
-                <i class="fa-solid fa-pen-nib"></i> 新增任務
-            </button>
-            <button class="fab-mini-btn" onclick="window.openRestModal(); window.toggleFab();">
-                <i class="fa-solid fa-mug-hot"></i> 新增🗳️/休息日
-            </button>
-        </div>
-        <button class="fab" id="fabMainBtn" onclick="window.toggleFab()">
+        <button class="fab" id="fabMainBtn" onclick="window.openEditModal()">
             <i class="fa-solid fa-plus"></i>
         </button>
     </div>
