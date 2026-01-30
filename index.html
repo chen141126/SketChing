@@ -161,7 +161,19 @@
         .day-cell.drag-highlight { border: 2px solid var(--primary-color); background-color: rgba(141, 110, 99, 0.1); }
         .day-cell.not-current-month { opacity: 0.4; }
         
-        .day-number { font-size: 0.8rem; font-weight: 600; color: var(--light-text); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+        /* 找到這一段並替換 */
+        .day-number { 
+            font-size: 0.75rem; /* 原本 0.8rem，稍微縮小 */
+            font-weight: 700;   /* 原本 600，加粗讓數字在小圓圈裡更清晰 */
+            color: var(--light-text); 
+            width: 20px;        /* ★ 關鍵：從 24px 改為 20px */
+            height: 20px;       /* ★ 關鍵：從 24px 改為 20px */
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            border-radius: 50%;
+            margin-bottom: 2px; /* 額外加一點底部間距，確保安全距離 */
+        }
         .day-number.today-circle { background-color: var(--primary-color); color: white; }
         
         .deadline-flag {
@@ -2922,12 +2934,17 @@ function calculateSchedule() {
                     
                     let dayNumClass = 'day-number';
                     if(dateStr === TODAY_STR) dayNumClass += ' today-circle';
-                    // ★ 修改這裡：準備速寫圖示
+                    
+                    // ★ 修改 1：調整圖示樣式 (改為絕對定位，不影響圓圈)
+                    // left: 32px 是因為格子 padding(4px) + 圓圈寬度(24px) + 間距(4px)
                     const isSketch = appData.sketchLogs && appData.sketchLogs.includes(dateStr);
-                    const sketchIcon = isSketch ? `<i class="fa-solid fa-palette" style="color:#FF9800; font-size:0.7rem; margin-left:2px;"></i>` : '';
+                    const sketchIcon = isSketch ? 
+                        `<i class="fa-solid fa-palette" style="position:absolute; top:8px; left:32px; color:#FF9800; font-size:0.7rem; pointer-events:none;"></i>` 
+                        : '';
 
-                    // 把圖示加進去 (放在 getDate() 後面)
-                    let html = `<div class="${dayNumClass}">${dObj.getDate()}${sketchIcon}</div>`;
+                    // ★ 修改 2：把 sketchIcon 移到 </div> 後面
+                    // 這樣 day-number 只包住數字，圓圈就會完美置中
+                    let html = `<div class="${dayNumClass}">${dObj.getDate()}</div>${sketchIcon}`;
                     
                     // ★ 修改這裡：調整樣式 (更小、更細、自動換行)
                     if (rest && rest.title) {
