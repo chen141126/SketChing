@@ -2936,10 +2936,10 @@ function calculateSchedule() {
                     if(dateStr === TODAY_STR) dayNumClass += ' today-circle';
                     
                     // ★ 修改 1：調整圖示樣式 (改為絕對定位，不影響圓圈)
-                    // left: 32px 是因為格子 padding(4px) + 圓圈寬度(24px) + 間距(4px)
+                    // left: 28px 是因為格子 padding(4px) + 圓圈寬度(20px) + 間距(4px)
                     const isSketch = appData.sketchLogs && appData.sketchLogs.includes(dateStr);
                     const sketchIcon = isSketch ? 
-                        `<i class="fa-solid fa-palette" style="position:absolute; top:8px; left:32px; color:#FF9800; font-size:0.7rem; pointer-events:none;"></i>` 
+                        `<i class="fa-solid fa-palette" style="position:absolute; top:8px; left:28px; color:#FF9800; font-size:0.7rem; pointer-events:none;"></i>` 
                         : '';
 
                     // ★ 修改 2：把 sketchIcon 移到 </div> 後面
