@@ -3931,11 +3931,6 @@ function calculateSchedule() {
         // 定義一個全域變數來暫存「編輯前的日期」
         window.editingRestDate = null;
         window.openRestModal = function(dateStr = TODAY_STR) {
-            // ★ Bug修復：記住原始日期，這樣修改日期時才能刪掉舊的
-// 定義一個全域變數來暫存「編輯前的日期」
-        window.editingRestDate = null;
-
-        window.openRestModal = function(dateStr = TODAY_STR) {
             window.editingRestDate = dateStr;
             
             // 1. 初始化日期
