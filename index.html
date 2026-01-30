@@ -181,7 +181,7 @@
         .deadline-flag {
             position: absolute; 
             top: 6px;             /* 稍微往下挪一點點，留空間給上面的數字紅點 */
-            right: 4px;           /* 稍微往左挪一點點 */
+            right: 2px;           /* 稍微往左挪一點點 */
             color: var(--deadline-text); 
             font-size: 0.85rem;   /* 旗子本體大小 */
             cursor: pointer; 
@@ -195,21 +195,20 @@
         }
         .deadline-count {
             position: absolute;    /* ★ 關鍵：絕對定位，讓它浮在旗子上 */
-            top: -6px;             /* 往上移，蓋住旗子頂部 */
-            right: -1px;           /* 往右移，掛在旗子角落 */
+            top: -1px;             /* 往上移，蓋住旗子頂部 */
+            right: -8px;           /* 往右移，掛在旗子角落 */
             
             font-size: 0.55rem;    /* 字體再縮小一點，才不會太大坨 */
             font-weight: 800;      /* 極粗體，確保小字也能看清 */
             color: #C62828;        /* 深紅色字 */
             
             /* 背景設定 */
-            background: rgba(255, 255, 255, 0.85); /* 用高透明度的白色背景，比較像通知紅點，也比較易讀 */
-            border: 1px solid #FFCDD2;             /* 加個淡淡的邊框讓它從旗子背景中跳出來 */
+            background: rgba(255, 255, 255, 0.6); /* 用高透明度的白色背景，比較像通知紅點，也比較易讀 */
             backdrop-filter: blur(2px);
             
             /* 形狀設定 */
-            min-width: 14px;       /* 確保圓形最小寬度 */
-            height: 14px;
+            min-width: 12px;       /* 確保圓形最小寬度 */
+            height: 12px;
             border-radius: 50%;    /* 變成正圓形 */
             display: flex;
             align-items: center;
