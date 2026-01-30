@@ -3003,6 +3003,7 @@ function calculateSchedule() {
                         html += `<div class="deadline-flag" onclick="window.toggleDeadlinePopover(event, '${dateStr}', ${dObj.getDay()})">
                                     <i class="fa-solid fa-flag"></i> ${countBadge}
                                  </div>`;
+                    }
                     
                     cell.innerHTML = html;
                     gridLayer.appendChild(cell);
