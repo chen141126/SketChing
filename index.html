@@ -1224,34 +1224,45 @@
         <div class="modal-overlay-bg" onclick="window.closeModal('restModal')"></div>
         <div class="modal-card">
             <div class="modal-header">
-                <span style="font-weight:700;">休息日設定</span>
+                <span style="font-weight:700;">🗳️打卡/休息日設定</span>
                 <button class="icon-btn" onclick="window.closeModal('restModal')"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="modal-body">
+<div class="modal-body">
                 <label>日期</label>
                 <input type="date" id="restDateInput" class="form-control" onchange="window.updateRestQuotaInfo(this.value)">
                 
-                <div style="margin:10px 0; display:flex; align-items:center; gap:8px;">
-                    <input type="checkbox" id="restFullDay" checked onchange="window.toggleRestTimeInput()">
-                    <label for="restFullDay" style="font-weight:600;">全天休息</label>
+                <div style="margin-top:15px; padding:12px; background:#FFF3E0; border:1px solid #FFE0B2; border-radius:12px; display:flex; align-items:center; gap:10px;">
+                    <input type="checkbox" id="sketchCheck" style="width:20px; height:20px; accent-color:#FF9800; cursor:pointer;">
+                    <label for="sketchCheck" style="font-weight:700; color:#EF6C00; cursor:pointer; font-size:1rem; margin:0; flex:1;">🎨 今天有練習畫畫！</label>
                 </div>
 
-                <div id="restTimeContainer" style="display:none; margin-bottom:12px;">
-                    <label>時段</label>
-                    <div style="display:flex; gap:10px;">
-                        <input type="time" id="restStart" class="form-control" value="09:00">
-                        <input type="time" id="restEnd" class="form-control" value="13:00">
-                    </div>
-                <div style="margin:10px 0; padding:10px; background:#FFF3E0; border-radius:8px; display:flex; align-items:center; gap:8px;">
-                    <input type="checkbox" id="sketchCheck" style="transform:scale(1.3);">
-                    <label for="sketchCheck" style="font-weight:700; color:#EF6C00; cursor:pointer;">🎨 今天有練習！</label>
-                    
+                <hr style="border:0; border-top:1px dashed #EEE; margin:15px 0;">
+
+                <div style="margin-bottom:10px; display:flex; align-items:center; gap:10px;">
+                    <input type="checkbox" id="isRestDayCheck" style="width:20px; height:20px; accent-color:#4CAF50; cursor:pointer;" onchange="window.toggleRestDetails()">
+                    <label for="isRestDayCheck" style="font-weight:700; color:#2E7D32; cursor:pointer; font-size:1rem; margin:0;">🛌 設定為休息日</label>
                 </div>
-                <label>行程名稱 (選填)</label>
-                <input type="text" id="restTitleInput" class="form-control" placeholder="例如：去動物園、聚餐">
-                
-                <div id="restQuotaInfo" style="background:#E3F2FD; color:#1565C0; padding:10px; border-radius:8px; font-size:0.9rem;">
-                    <!-- Content Injected via JS -->
+
+                <div id="restDetailsWrapper" style="display:none; padding-left:10px; border-left:3px solid #E8F5E9;">
+                    
+                    <label style="margin-top:10px;">行程名稱 (選填)</label>
+                    <input type="text" id="restTitleInput" class="form-control" placeholder="例如：去動物園、聚餐、耍廢">
+
+                    <div style="margin:10px 0; display:flex; align-items:center; gap:8px;">
+                        <input type="checkbox" id="restFullDay" checked onchange="window.toggleRestTimeInput()">
+                        <label for="restFullDay" style="font-weight:600;">全天休息 (不排工作)</label>
+                    </div>
+
+                    <div id="restTimeContainer" style="display:none; margin-bottom:12px;">
+                        <label>指定時段 (只休部分時間)</label>
+                        <div style="display:flex; gap:10px;">
+                            <input type="time" id="restStart" class="form-control" value="09:00">
+                            <input type="time" id="restEnd" class="form-control" value="13:00">
+                        </div>
+                    </div>
+                    
+                    <div id="restQuotaInfo" style="background:#E3F2FD; color:#1565C0; padding:10px; border-radius:8px; font-size:0.9rem;">
+                        </div>
                 </div>
             </div>
             <div class="modal-footer" style="display:flex; gap:10px;">
@@ -3921,28 +3932,64 @@ function calculateSchedule() {
         window.editingRestDate = null;
         window.openRestModal = function(dateStr = TODAY_STR) {
             // ★ Bug修復：記住原始日期，這樣修改日期時才能刪掉舊的
+// 定義一個全域變數來暫存「編輯前的日期」
+        window.editingRestDate = null;
+
+        window.openRestModal = function(dateStr = TODAY_STR) {
             window.editingRestDate = dateStr;
             
-            const rest = appData.restDays.find(r => r.date === dateStr);
-            // ★ 新增：檢查那天有沒有速寫紀錄
-            const hasSketch = appData.sketchLogs && appData.sketchLogs.includes(dateStr);
-            document.getElementById('sketchCheck').checked = hasSketch;
+            // 1. 初始化日期
             document.getElementById('restDateInput').value = dateStr;
-            document.getElementById('btnDeleteRest').style.display = rest ? 'block' : 'none';
             
-            // ★ 新增：讀取標題 (如果有存過的話)
-            document.getElementById('restTitleInput').value = (rest && rest.title) ? rest.title : '';
+            // 2. 讀取並設定「速寫」狀態
+            // ★ 防呆：確保陣列存在
+            if(!appData.sketchLogs) appData.sketchLogs = []; 
+            const hasSketch = appData.sketchLogs.includes(dateStr);
+            document.getElementById('sketchCheck').checked = hasSketch;
+
+            // 3. 讀取並設定「休息日」狀態
+            const rest = appData.restDays.find(r => r.date === dateStr);
+            const isRestDayCheck = document.getElementById('isRestDayCheck');
             
             if (rest) {
+                // 如果有資料，勾選總開關並填入資料
+                isRestDayCheck.checked = true;
+                document.getElementById('restTitleInput').value = rest.title || '';
                 document.getElementById('restFullDay').checked = rest.isFullDay;
                 document.getElementById('restStart').value = rest.start || '09:00';
                 document.getElementById('restEnd').value = rest.end || '13:00';
+                document.getElementById('btnDeleteRest').style.display = 'block'; // 顯示刪除按鈕
             } else {
-                document.getElementById('restFullDay').checked = true;
+                // 如果沒資料，重置為預設值
+                isRestDayCheck.checked = false;
+                document.getElementById('restTitleInput').value = '';
+                document.getElementById('restFullDay').checked = true; // 預設全天
+                document.getElementById('restStart').value = '09:00';
+                document.getElementById('restEnd').value = '13:00';
+                document.getElementById('btnDeleteRest').style.display = 'none';
             }
-            window.toggleRestTimeInput();
+
+            // 4. 更新 UI 顯示狀態
+            window.toggleRestDetails(); // 控制詳細區塊展開/收合
+            window.toggleRestTimeInput(); // 控制時間輸入框顯示
             window.updateRestQuotaInfo(dateStr);
+            
             window.openModal('restModal');
+        };
+
+        // 新增：控制休息日詳細設定的展開/收合
+        window.toggleRestDetails = function() {
+            const isRest = document.getElementById('isRestDayCheck').checked;
+            const wrapper = document.getElementById('restDetailsWrapper');
+            const deleteBtn = document.getElementById('btnDeleteRest');
+            
+            if (isRest) {
+                wrapper.style.display = 'block';
+                // 如果是編輯模式(有舊資料)，才顯示刪除鈕，或是可以統一隱藏刪除鈕，因為取消勾選=刪除
+                // 這裡我們讓取消勾選直接等於不設定，所以其實不需要獨立的刪除按鈕了，但為了保險先留著邏輯
+            } else {
+                wrapper.style.display = 'none';
+            }
         };
 
         window.toggleRestTimeInput = function() {
@@ -4021,34 +4068,46 @@ function calculateSchedule() {
         };
         
         window.submitRestDay = function() {
-            const date = document.getElementById('restDateInput').value; // 這是新日期
-            const isFullDay = document.getElementById('restFullDay').checked;
-            const start = document.getElementById('restStart').value;
-            const end = document.getElementById('restEnd').value;
+            const date = document.getElementById('restDateInput').value;
             
-            // ★ Phase 29：取得輸入的標題
-            const title = document.getElementById('restTitleInput').value.trim();
-
-            // ★ 新增：處理速寫紀錄
+            // --- A. 處理速寫紀錄 (修復無法儲存的問題) ---
             const isSketch = document.getElementById('sketchCheck').checked;
             if(!appData.sketchLogs) appData.sketchLogs = [];
             
-            // ★ Bug修復：先刪除「原始日期」的資料 (解決變成複製的問題)
+            // 1. 先移除該日期舊的紀錄 (防止重複或修改日期後的殘留)
+            if(window.editingRestDate && window.editingRestDate !== date) {
+                appData.sketchLogs = appData.sketchLogs.filter(d => d !== window.editingRestDate);
+            }
+            appData.sketchLogs = appData.sketchLogs.filter(d => d !== date);
+            
+            // 2. 如果有勾選，就加回去
+            if(isSketch) {
+                appData.sketchLogs.push(date);
+            }
+
+            // --- B. 處理休息日紀錄 ---
+            const isRestDay = document.getElementById('isRestDayCheck').checked;
+            
+            // 1. 先移除舊資料
             if (window.editingRestDate) {
                 appData.restDays = appData.restDays.filter(r => r.date !== window.editingRestDate);
             }
-            
-            // 再刪除「新日期」可能存在的資料 (防止同一天有兩筆，雖然通常不會發生)
             appData.restDays = appData.restDays.filter(r => r.date !== date);
 
-            // 儲存新資料
-            appData.restDays.push({ date, isFullDay, start, end, title });
+            // 2. 如果總開關有開，才儲存新資料
+            if (isRestDay) {
+                const title = document.getElementById('restTitleInput').value.trim();
+                const isFullDay = document.getElementById('restFullDay').checked;
+                const start = document.getElementById('restStart').value;
+                const end = document.getElementById('restEnd').value;
+                
+                appData.restDays.push({ date, isFullDay, start, end, title });
+            }
             
             calculateSchedule(); 
             window.closeModal('restModal');
-            window.editingRestDate = null; // 重置
+            window.editingRestDate = null;
         };
-
         window.deleteRestDay = function() {
             const date = document.getElementById('restDateInput').value;
             appData.restDays = appData.restDays.filter(r => r.date !== date);
