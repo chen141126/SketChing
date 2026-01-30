@@ -2772,6 +2772,27 @@
         }
 
 function calculateSchedule() {
+            // ★ Phase 32 Step 1: 自動標記歷史錨點 (Auto-Anchor)
+            // 在開始排程前，先檢查哪些浮動任務已經「開工」了
+            appData.tasks.forEach(t => {
+                // 如果任務進度被重置為 0，就移除錨點，讓它重新自由浮動
+                if (!t.loggedHours || t.loggedHours === 0) {
+                    delete t.historyStartDate;
+                } 
+                // 如果是「活躍」且「未鎖定」且「有進度」的任務
+                else if (t.status === 'active' && !t.locked && t.loggedHours > 0) {
+                    // 如果還沒記過「哪天開始做的」
+                    if (!t.historyStartDate) {
+                        // 優先抓取它目前計算出的起始日 (如果是舊存檔，這會是昨天的日期)
+                        if (t.computedStartDate && t.computedStartDate < TODAY_STR) {
+                            t.historyStartDate = t.computedStartDate;
+                        } else {
+                            // 否則就記為今天 (代表今天剛開工)
+                            t.historyStartDate = TODAY_STR;
+                        }
+                    }
+                }
+            });
             const mapStart = TODAY_STR; 
             const mapEnd = addDays(mapStart, 120);
             const range = getDatesInRange(mapStart, mapEnd);
@@ -2790,6 +2811,65 @@ function calculateSchedule() {
                 task.computedStartDate = currentDay;
                 
                 // ★ 防呆 1：鎖定任務的安全閥 (防止無限迴圈)
+                let loopSafety = 0;
+                while(hoursNeeded > 0) {
+                    if(loopSafety++ > 365) { console.warn('Task scheduled too long:', task.title); break; } 
+
+                    if (dateMap[currentDay] !== undefined) {
+                        const cap = dateMap[currentDay];
+                        const consume = Math.min(appData.settings.dailyWorkHours, hoursNeeded); 
+                        dateMap[currentDay] = Math.max(0, cap - consume);
+                        hoursNeeded -= consume;
+                    }
+                    if(hoursNeeded > 0) currentDay = addDays(currentDay, 1);
+                }
+                task.computedEndDate = currentDay;
+            });
+
+            const floatingTasks = appData.tasks
+                .filter(t => t.status === 'active' && !t.locked)
+                .sort((a, b) => a.priorityOrder - b.priorityOrder);
+
+function calculateSchedule() {
+            // ★ Phase 32 Step 1: 自動標記歷史錨點 (Auto-Anchor)
+            // 在開始排程前，先檢查哪些浮動任務已經「開工」了
+            appData.tasks.forEach(t => {
+                // 如果任務進度被重置為 0，就移除錨點，讓它重新自由浮動
+                if (!t.loggedHours || t.loggedHours === 0) {
+                    delete t.historyStartDate;
+                } 
+                // 如果是「活躍」且「未鎖定」且「有進度」的任務
+                else if (t.status === 'active' && !t.locked && t.loggedHours > 0) {
+                    // 如果還沒記過「哪天開始做的」
+                    if (!t.historyStartDate) {
+                        // 優先抓取它目前計算出的起始日 (如果是舊存檔，這會是昨天的日期)
+                        if (t.computedStartDate && t.computedStartDate < TODAY_STR) {
+                            t.historyStartDate = t.computedStartDate;
+                        } else {
+                            // 否則就記為今天 (代表今天剛開工)
+                            t.historyStartDate = TODAY_STR;
+                        }
+                    }
+                }
+            });
+
+            const mapStart = TODAY_STR; 
+            const mapEnd = addDays(mapStart, 120);
+            const range = getDatesInRange(mapStart, mapEnd);
+            
+            const dateMap = {};
+            range.forEach(date => { dateMap[date] = getDayCapacity(date); });
+
+            const fixedTasks = appData.tasks.filter(t => (t.status === 'active' && t.locked) || t.status === 'completed');
+            fixedTasks.forEach(task => {
+                if(task.status === 'completed' && task.computedStartDate) return; 
+
+                let hoursNeeded = task.estimatedHours - (task.loggedHours || 0);
+                if(hoursNeeded <= 0) return;
+                
+                let currentDay = task.manualStartDate || TODAY_STR; 
+                task.computedStartDate = currentDay;
+                
                 let loopSafety = 0;
                 while(hoursNeeded > 0) {
                     if(loopSafety++ > 365) { console.warn('Task scheduled too long:', task.title); break; } 
@@ -2832,6 +2912,22 @@ function calculateSchedule() {
                 }
                 // 如果排到最後一天還沒做完，標記為最後一天（避免 undefined）
                 if(!task.computedEndDate && startFound) task.computedEndDate = range[range.length-1];
+            });
+
+            // ★ Phase 32 Step 2: 應用歷史錨點 (Apply Anchor)
+            // 讓排程結果的起始日「延伸」回歷史日期
+            floatingTasks.forEach(task => {
+                if (task.historyStartDate) {
+                    // 如果現在排出來的日期比錨點晚 (例如：排在今天，但錨點是昨天)
+                    // 就把起始日強制拉回昨天
+                    if (!task.computedStartDate || task.historyStartDate < task.computedStartDate) {
+                        task.computedStartDate = task.historyStartDate;
+                    }
+                    // 防呆：確保結束日不會早於起始日
+                    if (!task.computedEndDate || task.computedEndDate < task.computedStartDate) {
+                        task.computedEndDate = task.computedStartDate;
+                    }
+                }
             });
 
             saveData();
