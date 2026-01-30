@@ -779,12 +779,12 @@
 
             <!-- Tabs -->
             <div class="tab-group">
-                <div id="tabEconomy" class="tab-pill active" onclick="window.switchStatsTab('economy')">煉金成果</div>
-                <div id="tabPerformance" class="tab-pill" onclick="window.switchStatsTab('performance')">戰鬥數值</div>
+                <div id="tabEconomy" class="tab-pill" onclick="window.switchStatsTab('economy')">戰鬥數值</div>
+                <div id="tabPerformance" class="tab-pill active" onclick="window.switchStatsTab('performance')">煉金成果</div>
             </div>
 
-            <!-- Tab Content: Economy -->
-            <div id="statsContentEconomy">
+            <!-- Tab Content: Performance -->
+            <div id="statsContentPerformance">
                 <div class="stats-card">
                     <span class="stats-label">總收益 (Total Revenue)</span>
                     <div class="stats-val-big" id="statsTotalRevenue">NT$ 0</div>
@@ -818,8 +818,8 @@
                 </div>
             </div>
 
-            <!-- Tab Content: Performance -->
-            <div id="statsContentPerformance" style="display:none;">
+            <!-- Tab Content: Economy -->
+            <div id="statsContentEconomy" style="display:none;">
                 <div class="stats-card">
                     <span class="stats-label">爆肝指數 (Total Grind)</span>
                     <div style="display:flex; justify-content:space-around; text-align:center; margin-top:10px;">
