@@ -2925,8 +2925,8 @@ function calculateSchedule() {
                     const rest = appData.restDays.find(r => r.date === dateStr);
                     if (rest) {
                         cell.classList.add('rest-day');
-                        cell.onclick = () => window.openRestModal(dateStr); 
                     }
+                    cell.onclick = () => window.openRestModal(dateStr);
 
                     cell.addEventListener('dragover', (e) => { e.preventDefault(); cell.classList.add('drag-over'); });
                     cell.addEventListener('dragleave', () => cell.classList.remove('drag-over'));
