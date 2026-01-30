@@ -743,7 +743,7 @@
             <!-- Estimation Items -->
             <div class="settings-section">
                 <h3>
-                    品項 (小時) 
+                     (小時) 
                     <button type="button" class="btn btn-secondary" style="padding:4px 10px; font-size:0.8rem;" onclick="window.addEstItem()">+ 新增</button>
                 </h3>
                 <div id="pgEstList"></div>
@@ -889,7 +889,7 @@
                 </div>
 
                 <div class="stats-card">
-                    <span class="stats-label">金主分析 (Revenue by Tag)</span>
+                    <span class="stats-label">金主分析</span>
                     <div class="pie-chart-container">
                         <div class="css-pie-chart" id="revenuePieChart">
                             <div class="css-pie-hole">Revenue</div>
@@ -1257,7 +1257,7 @@
                         <label style="margin:0;">人數 (倍率)</label>
                         <input type="number" id="newTaskCharCount" value="1" min="1" class="form-control" style="width:80px; margin:0; text-align:center;" onchange="window.updateEstimatedHours()">
                     </div>
-                    <label style="margin-top:0; display:block; font-size:0.85rem; color:#666;">品項 (自動加總)</label>
+                    <label style="margin-top:0; display:block; font-size:0.85rem; color:#666;"> (自動加總)</label>
                     <div class="checkbox-group" id="newTaskItemsContainer"></div>
                 </div>
                 
@@ -1966,10 +1966,9 @@
             document.getElementById('revenuePieChart').style.background = conicStrRev ? `conic-gradient(${conicStrRev.slice(0, -2)})` : '#F0F0F0';
 
 
-            // ★★★ 新增/修改：品項比例 (Item Ratio) 改為甜甜圈圖 ★★★
+            // ★★★ 修正與搬家：品項比例 (Item Ratio) ★★★
             const itemCounts = {};
             let totalItems = 0;
-            
             tasksActiveOrDone.forEach(t => {
                 if(t.selectedItemIndices && t.selectedItemIndices.length > 0) {
                     t.selectedItemIndices.forEach(idx => {
@@ -1983,15 +1982,17 @@
                 }
             });
             
-            // 確保容器存在
+            // ★ 關鍵修正：目標容器改為 'statsContentPerformance' (對應「煉金成果」)
+            const targetParent = document.getElementById('statsContentPerformance'); 
             let itemRatioContainer = document.getElementById('statsItemRatioCard');
+            
             if(!itemRatioContainer) {
-                const parent = document.getElementById('statsContentEconomy');
+                // 如果不存在，建立它
                 itemRatioContainer = document.createElement('div');
                 itemRatioContainer.className = 'stats-card';
                 itemRatioContainer.id = 'statsItemRatioCard';
                 itemRatioContainer.innerHTML = `
-                    <span class="stats-label">品項比例 (Item Ratio)</span>
+                    <span class="stats-label">品項比例</span>
                     <div class="pie-chart-container">
                         <div class="css-pie-chart" id="itemRatioPieChart">
                             <div class="css-pie-hole">Items</div>
@@ -1999,7 +2000,12 @@
                     </div>
                     <div class="legend-grid" id="itemRatioLegend"></div>
                 `;
-                parent.appendChild(itemRatioContainer);
+                targetParent.appendChild(itemRatioContainer);
+            } else {
+                // ★ 自動搬家：如果它已經存在但跑錯棚了 (在 statsContentEconomy)，把它抓回來
+                if(itemRatioContainer.parentNode !== targetParent) {
+                    targetParent.appendChild(itemRatioContainer);
+                }
             }
 
             const sortedItems = Object.keys(itemCounts).sort((a,b) => itemCounts[b] - itemCounts[a]);
@@ -2007,7 +2013,6 @@
             let currentDegItem = 0;
             const legendItem = document.getElementById('itemRatioLegend');
             legendItem.innerHTML = '';
-            // 使用不同的配色 (紫色/橘色系) 來區分
             const paletteItem = ['#FFAB91', '#FFCC80', '#FFE082', '#C5E1A5', '#80CBC4', '#90CAF9', '#9FA8DA', '#CE93D8', '#F48FB1', '#BCAAA4'];
 
             sortedItems.forEach((name, idx) => {
@@ -2015,12 +2020,10 @@
                 const pct = totalItems > 0 ? (count / totalItems) * 100 : 0;
                 const deg = (pct / 100) * 360;
                 const color = paletteItem[idx % paletteItem.length];
-
                 if (totalItems > 0) {
                     conicStrItem += `${color} ${currentDegItem}deg ${currentDegItem + deg}deg, `;
                     currentDegItem += deg;
                 }
-                
                 if (pct > 0) {
                     legendItem.innerHTML += `
                         <div class="legend-item">
