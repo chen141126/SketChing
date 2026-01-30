@@ -177,13 +177,44 @@
         .day-number.today-circle { background-color: var(--primary-color); color: white; }
         
         .deadline-flag {
-            position: absolute; top: 2px; right: 2px;
-            color: var(--deadline-text); font-size: 0.8rem;
-            cursor: pointer; z-index: 20; display: flex; align-items: center; gap: 2px;
+            position: absolute; 
+            top: 4px;             /* 稍微往下挪一點點，留空間給上面的數字紅點 */
+            right: 6px;           /* 稍微往左挪一點點 */
+            color: var(--deadline-text); 
+            font-size: 0.85rem;   /* 旗子本體大小 */
+            cursor: pointer; 
+            z-index: 20; 
+            
+            /* ★ 關鍵：讓它變成定位基準點，且內容不換行 */
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            overflow: visible;    /* 允許數字紅點超出範圍 */
         }
         .deadline-count {
-            font-size: 0.6rem; font-weight: 700; background: var(--tag-urgent); backdrop-filter: blur(2px);  /* ★ 增加一點毛玻璃效果，疊在日期上時比較清楚 */
-            padding: 0 4px; border-radius: 4px; color: var(--deadline-text);
+            position: absolute;    /* ★ 關鍵：絕對定位，讓它浮在旗子上 */
+            top: -4px;             /* 往上移，蓋住旗子頂部 */
+            right: -6px;           /* 往右移，掛在旗子角落 */
+            
+            font-size: 0.55rem;    /* 字體再縮小一點，才不會太大坨 */
+            font-weight: 800;      /* 極粗體，確保小字也能看清 */
+            color: #C62828;        /* 深紅色字 */
+            
+            /* 背景設定 */
+            background: rgba(255, 255, 255, 0.85); /* 用高透明度的白色背景，比較像通知紅點，也比較易讀 */
+            border: 1px solid #FFCDD2;             /* 加個淡淡的邊框讓它從旗子背景中跳出來 */
+            backdrop-filter: blur(2px);
+            
+            /* 形狀設定 */
+            min-width: 14px;       /* 確保圓形最小寬度 */
+            height: 14px;
+            border-radius: 50%;    /* 變成正圓形 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;            /* 歸零 padding，用 flex 置中 */
+            z-index: 10;           /* 確保浮在最上面 */
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1); /* 加一點點陰影增加立體感 */
         }
         .deadline-popover {
             position: absolute; background: white; border: 1px solid var(--accent-color);
@@ -2966,12 +2997,10 @@ function calculateSchedule() {
                     const dls = appData.tasks.filter(t => t.deadline === dateStr);
                     if(dls.length > 0) {
                         const countBadge = dls.length > 1 ? `<span class="deadline-count">${dls.length}</span>` : '';
-                        // ★ 修改：先放數量 ${countBadge}，再放旗子 <i>
-                        // 這樣靠右對齊時，旗子會在最右邊角落，數量框往左延伸
+                        // ★ 修改：先放旗子，再放數字 (這樣數字的 z-index 自然比較高)
                         html += `<div class="deadline-flag" onclick="window.toggleDeadlinePopover(event, '${dateStr}', ${dObj.getDay()})">
-                                    ${countBadge} <i class="fa-solid fa-flag"></i>
+                                    <i class="fa-solid fa-flag"></i> ${countBadge}
                                  </div>`;
-                    }
                     
                     cell.innerHTML = html;
                     gridLayer.appendChild(cell);
