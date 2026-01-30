@@ -634,7 +634,7 @@
         /* --- PHASE 21: STATS PAGE CSS --- */
         .stats-control-bar {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.05); margin-bottom: 10px;
+            padding: 6px 0; border-bottom: 1px solid rgba(0,0,0,0.05); margin-bottom: 10px;
         }
         .stats-card {
             background: #FFF; border-radius: 16px; padding: 16px; margin-bottom: 16px;
@@ -783,41 +783,6 @@
                 <div id="tabPerformance" class="tab-pill active" onclick="window.switchStatsTab('performance')">煉金成果</div>
             </div>
 
-            <!-- Tab Content: Performance -->
-            <div id="statsContentPerformance">
-                <div class="stats-card">
-                    <span class="stats-label">總收益 (Total Revenue)</span>
-                    <div class="stats-val-big" id="statsTotalRevenue">NT$ 0</div>
-                </div>
-
-                <div class="stats-card">
-                    <span class="stats-label">薪資條 (Real Hourly Rate)</span>
-                    <div class="stats-val-big" id="statsRealHourly" style="margin-bottom:8px;">$0 / hr</div>
-                    
-                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#888;">
-                        <span>預估 (Est)</span>
-                        <span id="valEstRate">$0</span>
-                    </div>
-                    <div class="css-bar-bg"><div class="css-bar-fill" id="barEstRate" style="width:0%; background:#BDBDBD;"></div></div>
-                    
-                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#888; margin-top:6px;">
-                        <span>真實 (Real)</span>
-                        <span id="valRealRate">$0</span>
-                    </div>
-                    <div class="css-bar-bg"><div class="css-bar-fill" id="barRealRate" style="width:0%; background:#42A5F5;"></div></div>
-                </div>
-
-                <div class="stats-card">
-                    <span class="stats-label">金主分析 (Revenue by Tag)</span>
-                    <div class="pie-chart-container">
-                        <div class="css-pie-chart" id="revenuePieChart">
-                            <div class="css-pie-hole">Revenue</div>
-                        </div>
-                    </div>
-                    <div class="legend-grid" id="revenueLegend"></div>
-                </div>
-            </div>
-
             <!-- Tab Content: Economy -->
             <div id="statsContentEconomy" style="display:none;">
                 <div class="stats-card">
@@ -861,6 +826,43 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Tab Content: Performance -->
+            <div id="statsContentPerformance">
+                <div class="stats-card">
+                    <span class="stats-label">總收益 (Total Revenue)</span>
+                    <div class="stats-val-big" id="statsTotalRevenue">NT$ 0</div>
+                </div>
+
+                <div class="stats-card">
+                    <span class="stats-label">薪資條 (Real Hourly Rate)</span>
+                    <div class="stats-val-big" id="statsRealHourly" style="margin-bottom:8px;">$0 / hr</div>
+                    
+                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#888;">
+                        <span>預估 (Est)</span>
+                        <span id="valEstRate">$0</span>
+                    </div>
+                    <div class="css-bar-bg"><div class="css-bar-fill" id="barEstRate" style="width:0%; background:#BDBDBD;"></div></div>
+                    
+                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#888; margin-top:6px;">
+                        <span>真實 (Real)</span>
+                        <span id="valRealRate">$0</span>
+                    </div>
+                    <div class="css-bar-bg"><div class="css-bar-fill" id="barRealRate" style="width:0%; background:#42A5F5;"></div></div>
+                </div>
+
+                <div class="stats-card">
+                    <span class="stats-label">金主分析 (Revenue by Tag)</span>
+                    <div class="pie-chart-container">
+                        <div class="css-pie-chart" id="revenuePieChart">
+                            <div class="css-pie-hole">Revenue</div>
+                        </div>
+                    </div>
+                    <div class="legend-grid" id="revenueLegend"></div>
+                </div>
+            </div>
+
+            
             
             <div style="height: 60px;"></div>
         </div>
