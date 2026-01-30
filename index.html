@@ -1242,6 +1242,10 @@
                         <input type="time" id="restStart" class="form-control" value="09:00">
                         <input type="time" id="restEnd" class="form-control" value="13:00">
                     </div>
+                <div style="margin:10px 0; padding:10px; background:#FFF3E0; border-radius:8px; display:flex; align-items:center; gap:8px;">
+                    <input type="checkbox" id="sketchCheck" style="transform:scale(1.3);">
+                    <label for="sketchCheck" style="font-weight:700; color:#EF6C00; cursor:pointer;">🎨 今天有練習！</label>
+                    
                 </div>
                 <label>行程名稱 (選填)</label>
                 <input type="text" id="restTitleInput" class="form-control" placeholder="例如：去動物園、聚餐">
@@ -2751,6 +2755,8 @@ function calculateSchedule() {
                 appData.restDays = [];
                 appData.rewardCategories = [];
                 appData.rewardLogs = [];
+                // ★ 新增這行
+                appData.sketchLogs = [];
                 calculateSchedule();
             }
 
@@ -2767,6 +2773,8 @@ function calculateSchedule() {
                     if(!appData.settings.subItemTemplates) appData.settings.subItemTemplates = DEFAULT_SETTINGS.subItemTemplates;
                     if(!appData.rewardCategories) appData.rewardCategories = [];
                     if(!appData.rewardLogs) appData.rewardLogs = [];
+                    // ★ 新增這行：初始化速寫紀錄
+                    if(!appData.sketchLogs) appData.sketchLogs = [];
                     
                 } catch (e) {
                     console.error("Data corrupted, resetting...", e);
@@ -2854,8 +2862,12 @@ function calculateSchedule() {
                     
                     let dayNumClass = 'day-number';
                     if(dateStr === TODAY_STR) dayNumClass += ' today-circle';
+                    // ★ 修改這裡：準備速寫圖示
+                    const isSketch = appData.sketchLogs && appData.sketchLogs.includes(dateStr);
+                    const sketchIcon = isSketch ? `<i class="fa-solid fa-palette" style="color:#FF9800; font-size:0.7rem; margin-left:2px;"></i>` : '';
 
-                    let html = `<div class="${dayNumClass}">${dObj.getDate()}</div>`;
+                    // 把圖示加進去 (放在 getDate() 後面)
+                    let html = `<div class="${dayNumClass}">${dObj.getDate()}${sketchIcon}</div>`;
                     
                     // ★ 修改這裡：調整樣式 (更小、更細、自動換行)
                     if (rest && rest.title) {
@@ -3912,6 +3924,9 @@ function calculateSchedule() {
             window.editingRestDate = dateStr;
             
             const rest = appData.restDays.find(r => r.date === dateStr);
+            // ★ 新增：檢查那天有沒有速寫紀錄
+            const hasSketch = appData.sketchLogs && appData.sketchLogs.includes(dateStr);
+            document.getElementById('sketchCheck').checked = hasSketch;
             document.getElementById('restDateInput').value = dateStr;
             document.getElementById('btnDeleteRest').style.display = rest ? 'block' : 'none';
             
@@ -4013,6 +4028,10 @@ function calculateSchedule() {
             
             // ★ Phase 29：取得輸入的標題
             const title = document.getElementById('restTitleInput').value.trim();
+
+            // ★ 新增：處理速寫紀錄
+            const isSketch = document.getElementById('sketchCheck').checked;
+            if(!appData.sketchLogs) appData.sketchLogs = [];
             
             // ★ Bug修復：先刪除「原始日期」的資料 (解決變成複製的問題)
             if (window.editingRestDate) {
@@ -4023,7 +4042,7 @@ function calculateSchedule() {
             appData.restDays = appData.restDays.filter(r => r.date !== date);
 
             // 儲存新資料
-            appData.restDays.push({ date, isFullDay, start, end, title });
+            appData.restDays.push({ date, isFullDay, start, end, title, isSketch });
             
             calculateSchedule(); 
             window.closeModal('restModal');
