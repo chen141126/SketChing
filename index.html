@@ -180,8 +180,8 @@
         
         .deadline-flag {
             position: absolute; 
-            top: 4px;             /* 稍微往下挪一點點，留空間給上面的數字紅點 */
-            right: 6px;           /* 稍微往左挪一點點 */
+            top: 6px;             /* 稍微往下挪一點點，留空間給上面的數字紅點 */
+            right: 12px;           /* 稍微往左挪一點點 */
             color: var(--deadline-text); 
             font-size: 0.85rem;   /* 旗子本體大小 */
             cursor: pointer; 
@@ -195,8 +195,8 @@
         }
         .deadline-count {
             position: absolute;    /* ★ 關鍵：絕對定位，讓它浮在旗子上 */
-            top: -4px;             /* 往上移，蓋住旗子頂部 */
-            right: -4px;           /* 往右移，掛在旗子角落 */
+            top: -6px;             /* 往上移，蓋住旗子頂部 */
+            right: -8px;           /* 往右移，掛在旗子角落 */
             
             font-size: 0.55rem;    /* 字體再縮小一點，才不會太大坨 */
             font-weight: 800;      /* 極粗體，確保小字也能看清 */
@@ -215,7 +215,7 @@
             align-items: center;
             justify-content: center;
             padding: 0;            /* 歸零 padding，用 flex 置中 */
-            z-index: 10;           /* 確保浮在最上面 */
+            z-index: 30;           /* 確保浮在最上面 */
             box-shadow: 0 1px 2px rgba(0,0,0,0.1); /* 加一點點陰影增加立體感 */
         }
         .deadline-popover {
