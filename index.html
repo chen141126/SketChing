@@ -797,10 +797,24 @@
                         > 100% 代表超時 (Overtime)
                     </div>
                 </div>
-
+                
                 <div class="stats-card">
                     <span class="stats-label">標籤頻率 (Top 5 Tags)</span>
                     <div id="statsTagRank" style="margin-top:10px;"></div>
+                </div>
+
+                <div class="stats-card">
+                    <span class="stats-label">修練 (Sketch Habit)</span>
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                        <div>
+                            <div class="stats-val-big" id="statsSketchCount" style="color:#EF6C00;">0 天</div>
+                            <div style="font-size:0.8rem; color:#888;" id="statsSketchRate">出勤率 0%</div>
+                        </div>
+                        <i class="fa-solid fa-palette" style="font-size:2.5rem; color:#FFE0B2;"></i>
+                    </div>
+                    <div class="rank-bar-bg">
+                        <div class="rank-bar-fill" id="statsSketchBar" style="width:0%; background:#FF9800;"></div>
+                    </div>
                 </div>
             </div>
             
@@ -1927,6 +1941,41 @@
             }).join('');
             
             if (topTags.length === 0) rankContainer.innerHTML = '<div style="text-align:center; color:#AAA; padding:10px;">無資料</div>';
+            
+            // ★★★ 在這裡插入速寫統計邏輯 ★★★
+            
+            // 5. Sketch Stats (Phase 31)
+            const sketchLogs = appData.sketchLogs || [];
+            let sketchCount = 0;
+            let totalDaysInPeriod = 0;
+            
+            const yStr = currentDate.getFullYear().toString();
+            // 補零函數，確保月份是 '01', '02' 格式
+            const mStr = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+
+            if (viewMode === 'year') {
+                // 年檢視：計算該年份所有速寫
+                sketchCount = sketchLogs.filter(d => d.startsWith(yStr + '-')).length;
+                // 計算該年總天數 (簡單判斷閏年)
+                totalDaysInPeriod = ((currentDate.getFullYear() % 4 === 0 && currentDate.getFullYear() % 100 !== 0) || currentDate.getFullYear() % 400 === 0) ? 366 : 365;
+            } else {
+                // 月檢視：計算該月份所有速寫
+                const prefix = `${yStr}-${mStr}`;
+                sketchCount = sketchLogs.filter(d => d.startsWith(prefix)).length;
+                // 計算該月總天數
+                totalDaysInPeriod = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+            }
+
+            // 計算出勤率
+            let sketchRate = 0;
+            if (totalDaysInPeriod > 0) {
+                sketchRate = Math.round((sketchCount / totalDaysInPeriod) * 100);
+            }
+
+            // 更新 UI
+            document.getElementById('statsSketchCount').textContent = `${sketchCount} 天`;
+            document.getElementById('statsSketchRate').textContent = `出勤率 ${sketchRate}%`;
+            document.getElementById('statsSketchBar').style.width = `${sketchRate}%`;
         };
 
         // --- PHASE 16 & 17 & 18 & 20: REWARD SYSTEM LOGIC ---
