@@ -634,7 +634,7 @@
         /* --- PHASE 21: STATS PAGE CSS --- */
         .stats-control-bar {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 6px 0; border-bottom: 1px solid rgba(0,0,0,0.05); margin-bottom: 10px;
+            padding: 4px 0; border-bottom: 1px solid rgba(0,0,0,0.05); margin-bottom: 6px;
         }
         .stats-card {
             background: #FFF; border-radius: 16px; padding: 16px; margin-bottom: 16px;
@@ -1764,6 +1764,8 @@
             document.querySelectorAll('.main-content-element').forEach(el => el.style.display = 'none');
             document.getElementById('rewardPage').style.display = 'none';
             document.getElementById('statsPage').style.display = 'flex';
+            // ★ 新增這行：強制切換到「戰鬥數值 (performance)」
+            window.switchStatsTab('Economy');
             window.renderStats();
         };
 
