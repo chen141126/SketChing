@@ -1862,57 +1862,48 @@
             document.getElementById('statsDateDisplay').textContent = viewMode === 'year' ? year : `${year} / ${month}月`;
             document.getElementById('statsViewModeDisplay').textContent = viewMode === 'year' ? 'Year View' : 'Month View';
 
-            // ★ 定義通用篩選器：判斷任務是否屬於當前選擇的「年份/月份」
+            // ★ 通用篩選器
             const isInRange = (t) => {
                 let d = null;
-                // 如果已完成，看完成日
-                if (t.status === 'completed' && t.completedDate) {
-                    d = new Date(t.completedDate);
-                } 
-                // 如果未完成，看排程起始日 (如果沒排程，暫時不計入年份統計，或視為無效)
-                else if (t.computedStartDate) {
-                    d = new Date(t.computedStartDate);
-                } else if (t.manualStartDate) {
-                    d = new Date(t.manualStartDate);
-                }
+                if (t.status === 'completed' && t.completedDate) d = new Date(t.completedDate);
+                else if (t.computedStartDate) d = new Date(t.computedStartDate);
+                else if (t.manualStartDate) d = new Date(t.manualStartDate);
                 
-                if (!d) return false; // 沒日期的待辦事項不計入特定時間統計
+                if (!d) return false;
 
-                if (viewMode === 'year') {
-                    return d.getFullYear() === year;
-                } else {
-                    return d.getFullYear() === year && d.getMonth() === (month - 1);
-                }
+                if (viewMode === 'year') return d.getFullYear() === year;
+                else return d.getFullYear() === year && d.getMonth() === (month - 1);
             };
 
-            // ★ 準備三種數據池
-            // Pool A: 嚴格 (已完成) -> 用於「總收益」、「真實薪資」
+            // ★ 準備數據池
+            // Pool A: 已完成 (Completed) -> 用於「總收益」、「真實薪資」、「完成任務數」
             const tasksCompleted = appData.tasks.filter(t => t.status === 'completed' && isInRange(t));
             
-            // Pool B: 寬鬆 (無條件) -> 用於「預估薪資」、「爆肝總工時」、「總任務數」
-            // 包含：未開始、待辦、進行中、暫停、完成
+            // Pool B: 無條件 (Unconditional) -> 用於「預估薪資」、「總工時(爆肝)」
+            // 包含所有狀態
             const tasksUnconditional = appData.tasks.filter(t => isInRange(t));
 
-            // Pool C: 實務 (進行 + 完成) -> 用於「標籤頻率」、「品項比例」
-            // 排除：待辦(backlog)、暫停(paused)
+            // Pool C: 實務 (Active + Completed) -> 用於「標籤頻率」、「品項比例」
+            // 排除待辦(backlog)與暫停(paused)
             const tasksActiveOrDone = appData.tasks.filter(t => 
                 (t.status === 'active' || t.status === 'completed' || t.status === 'locked') && isInRange(t)
             );
 
+            // Pool D: 進行中/待辦 (Active Only) -> 用於「待辦任務數」
+            // 符合 "未完成、未暫停、非待辦區" 的定義
+            const tasksActive = appData.tasks.filter(t => t.status === 'active' && isInRange(t));
+
 
             // --- 3. Economy Stats (煉金成果) ---
             
-            // 3.1 總收益 (只看已入袋的/已完成的)
+            // 3.1 總收益
             const totalRevenue = tasksCompleted.reduce((sum, t) => sum + (t.price || 0), 0);
             document.getElementById('statsTotalRevenue').textContent = window.formatMoney(totalRevenue);
 
             // 3.2 薪資條
-            // 真實時薪 (Real) -> 基於「已完成」的任務 (實際賺到的錢 / 實際花的時間)
             const totalHoursLogged_Completed = tasksCompleted.reduce((sum, t) => sum + (t.loggedHours || 0), 0);
             const realHourly = totalHoursLogged_Completed > 0 ? Math.round(totalRevenue / totalHoursLogged_Completed) : 0;
             
-            // 預估時薪 (Est) -> 基於「無條件」的所有任務 (總報價 / 總預估時間)
-            // 這樣就算還沒做完，也能知道這陣子接案的「平均期望值」
             const totalEstRevenue_All = tasksUnconditional.reduce((sum, t) => sum + (t.price || 0), 0);
             const totalHoursEst_All = tasksUnconditional.reduce((sum, t) => sum + (t.estimatedHours || 0), 0);
             const estHourly = totalHoursEst_All > 0 ? Math.round(totalEstRevenue_All / totalHoursEst_All) : 0;
@@ -1921,7 +1912,6 @@
             document.getElementById('valEstRate').textContent = isGlassHeart ? '🙈' : `$${estHourly}`;
             document.getElementById('valRealRate').textContent = isGlassHeart ? '🙈' : `$${realHourly}`;
 
-            // Bar Charts
             const maxRate = Math.max(realHourly, estHourly) || 1;
             document.getElementById('barEstRate').style.width = `${Math.min(100, (estHourly / maxRate) * 100)}%`;
             const realBarEl = document.getElementById('barRealRate');
@@ -1929,8 +1919,7 @@
             realBarEl.style.backgroundColor = (estHourly > 0 && realHourly < estHourly * 0.8) ? '#EF5350' : '#42A5F5';
 
 
-            // 3.3 金主分析 (圓餅圖) -> 這裡通常看「錢哪裡來」，所以維持用「已完成」或「所有有報價的」? 
-            // 為了跟總收益呼應，這裡建議維持用「TasksCompleted」來畫 Revenue 圓餅圖
+            // 3.3 金主分析 (圓餅圖) - Revenue
             const tagRevenue = {};
             let knownRev = 0;
             tasksCompleted.forEach(t => {
@@ -1941,29 +1930,32 @@
             });
             if (knownRev === 0 && tasksCompleted.length > 0) tagRevenue['other'] = 0;
 
-            const sortedTags = Object.keys(tagRevenue).sort((a,b) => tagRevenue[b] - tagRevenue[a]);
-            let conicStr = '';
-            let currentDeg = 0;
-            const legendContainer = document.getElementById('revenueLegend');
-            legendContainer.innerHTML = '';
-            const palette = ['#FFCDD2', '#F8BBD0', '#E1BEE7', '#D1C4E9', '#C5CAE9', '#BBDEFB', '#B3E5FC', '#B2EBF2', '#B2DFDB', '#C8E6C9'];
+            const sortedRevTags = Object.keys(tagRevenue).sort((a,b) => tagRevenue[b] - tagRevenue[a]);
+            let conicStrRev = '';
+            let currentDegRev = 0;
+            const legendRev = document.getElementById('revenueLegend');
+            legendRev.innerHTML = '';
+            const paletteRev = ['#FFCDD2', '#F8BBD0', '#E1BEE7', '#D1C4E9', '#C5CAE9', '#BBDEFB', '#B3E5FC', '#B2EBF2', '#B2DFDB', '#C8E6C9'];
 
-            sortedTags.forEach((tagId, idx) => {
+            sortedRevTags.forEach((tagId, idx) => {
                 const rev = tagRevenue[tagId];
                 const pct = knownRev > 0 ? (rev / knownRev) * 100 : 0;
                 const deg = (pct / 100) * 360;
-                const color = palette[idx % palette.length];
+                const color = paletteRev[idx % paletteRev.length];
+                
                 let tagName = '無標籤';
                 if(tagId !== 'other') {
                     const tagObj = appData.settings.tags.find(g => g.id == tagId);
                     if(tagObj) tagName = tagObj.name;
                 }
+
                 if (knownRev > 0) {
-                    conicStr += `${color} ${currentDeg}deg ${currentDeg + deg}deg, `;
-                    currentDeg += deg;
+                    conicStrRev += `${color} ${currentDegRev}deg ${currentDegRev + deg}deg, `;
+                    currentDegRev += deg;
                 }
+
                 if (pct > 0) {
-                    legendContainer.innerHTML += `
+                    legendRev.innerHTML += `
                         <div class="legend-item">
                             <div class="legend-color" style="background:${color}"></div>
                             <span>${tagName} (${Math.round(pct)}%)</span>
@@ -1971,11 +1963,10 @@
                     `;
                 }
             });
-            document.getElementById('revenuePieChart').style.background = conicStr ? `conic-gradient(${conicStr.slice(0, -2)})` : '#F0F0F0';
+            document.getElementById('revenuePieChart').style.background = conicStrRev ? `conic-gradient(${conicStrRev.slice(0, -2)})` : '#F0F0F0';
 
 
-            // ★★★ 新增：品項比例 (Item Ratio) ★★★
-            // 使用 Pool C (實務: 進行+完成)
+            // ★★★ 新增/修改：品項比例 (Item Ratio) 改為甜甜圈圖 ★★★
             const itemCounts = {};
             let totalItems = 0;
             
@@ -1992,52 +1983,87 @@
                 }
             });
             
-            // 渲染品項比例區塊
-            const itemRatioContainer = document.getElementById('statsItemRatio');
-            // 如果容器不存在(第一次)，就動態插入到金主分析下面
+            // 確保容器存在
+            let itemRatioContainer = document.getElementById('statsItemRatioCard');
             if(!itemRatioContainer) {
                 const parent = document.getElementById('statsContentEconomy');
-                const div = document.createElement('div');
-                div.className = 'stats-card';
-                div.innerHTML = `
+                itemRatioContainer = document.createElement('div');
+                itemRatioContainer.className = 'stats-card';
+                itemRatioContainer.id = 'statsItemRatioCard';
+                itemRatioContainer.innerHTML = `
                     <span class="stats-label">品項比例 (Item Ratio)</span>
-                    <div id="statsItemRatioInner" style="margin-top:10px;"></div>
+                    <div class="pie-chart-container">
+                        <div class="css-pie-chart" id="itemRatioPieChart">
+                            <div class="css-pie-hole">Items</div>
+                        </div>
+                    </div>
+                    <div class="legend-grid" id="itemRatioLegend"></div>
                 `;
-                parent.appendChild(div);
-                // 重新抓取
+                parent.appendChild(itemRatioContainer);
             }
-            const innerContainer = document.getElementById('statsItemRatioInner') || document.querySelector('#statsItemRatioInner');
-            
-            if(innerContainer) {
-                const sortedItems = Object.keys(itemCounts).sort((a,b) => itemCounts[b] - itemCounts[a]);
-                innerContainer.innerHTML = sortedItems.map(name => {
-                    const count = itemCounts[name];
-                    const pct = totalItems > 0 ? (count / totalItems * 100) : 0;
-                    return `
-                        <div class="rank-row">
-                            <div style="width:70px; font-size:0.8rem; font-weight:700;">${name}</div>
-                            <div class="rank-bar-bg">
-                                <div class="rank-bar-fill" style="width:${pct}%; background:#AB47BC;"></div>
-                            </div>
-                            <div style="font-size:0.75rem; color:#666;">${count}</div>
+
+            const sortedItems = Object.keys(itemCounts).sort((a,b) => itemCounts[b] - itemCounts[a]);
+            let conicStrItem = '';
+            let currentDegItem = 0;
+            const legendItem = document.getElementById('itemRatioLegend');
+            legendItem.innerHTML = '';
+            // 使用不同的配色 (紫色/橘色系) 來區分
+            const paletteItem = ['#FFAB91', '#FFCC80', '#FFE082', '#C5E1A5', '#80CBC4', '#90CAF9', '#9FA8DA', '#CE93D8', '#F48FB1', '#BCAAA4'];
+
+            sortedItems.forEach((name, idx) => {
+                const count = itemCounts[name];
+                const pct = totalItems > 0 ? (count / totalItems) * 100 : 0;
+                const deg = (pct / 100) * 360;
+                const color = paletteItem[idx % paletteItem.length];
+
+                if (totalItems > 0) {
+                    conicStrItem += `${color} ${currentDegItem}deg ${currentDegItem + deg}deg, `;
+                    currentDegItem += deg;
+                }
+                
+                if (pct > 0) {
+                    legendItem.innerHTML += `
+                        <div class="legend-item">
+                            <div class="legend-color" style="background:${color}"></div>
+                            <span>${name} (${Math.round(pct)}%)</span>
                         </div>
                     `;
-                }).join('') || '<div style="text-align:center; color:#AAA; padding:10px;">無資料</div>';
-            }
+                }
+            });
+            document.getElementById('itemRatioPieChart').style.background = conicStrItem ? `conic-gradient(${conicStrItem.slice(0, -2)})` : '#F0F0F0';
 
 
             // --- 4. Performance Stats (戰鬥數值) ---
 
-            // 4.1 爆肝指數 (無條件) -> 只要有排程，就算入工時
-            // 這裡用 Logged Hours (已做) 還是 Estimated (總量)? 
-            // 通常 "爆肝" 是指 "已經投入的肝"，所以我們加總所有任務的 loggedHours
+            // 4.1 爆肝指數 (修改版：三欄位)
+            // 總工時 (Unconditional: loggedHours)
             const totalGrindHours = tasksUnconditional.reduce((sum, t) => sum + (t.loggedHours || 0), 0);
             
-            document.getElementById('statsTotalHours').textContent = totalGrindHours.toFixed(1) + 'h';
-            document.getElementById('statsTotalTasks').textContent = tasksUnconditional.length; // 總任務數 (含待辦)
+            // ★ 修改：拆分為「已完成」與「待辦中」
+            const countCompleted = tasksCompleted.length;
+            const countPending = tasksActive.length;
 
-            // 4.2 預言家準確率 (只看已完成，因為只有完成才知道準不準)
-            // 維持使用 tasksCompleted
+            const grindCard = document.getElementById('statsTotalHours').closest('.stats-card');
+            // 重繪這張卡片的內部 HTML 以支援三欄位
+            grindCard.innerHTML = `
+                <span class="stats-label">爆肝指數 (Total Grind)</span>
+                <div style="display:flex; justify-content:space-around; text-align:center; margin-top:10px;">
+                    <div>
+                        <div class="stats-val-big" id="statsTotalHours">${totalGrindHours.toFixed(1)}h</div>
+                        <div style="font-size:0.8rem; color:#888;">總工時</div>
+                    </div>
+                    <div>
+                        <div class="stats-val-big" style="color:#2E7D32;">${countCompleted}</div>
+                        <div style="font-size:0.8rem; color:#888;">已完成</div>
+                    </div>
+                     <div>
+                        <div class="stats-val-big" style="color:#EF6C00;">${countPending}</div>
+                        <div style="font-size:0.8rem; color:#888;">待辦中</div>
+                    </div>
+                </div>
+            `;
+
+            // 4.2 預言家準確率
             const totalHoursEst_Completed = tasksCompleted.reduce((sum, t) => sum + (t.estimatedHours || 0), 0);
             let accuracy = 0;
             if (totalHoursEst_Completed > 0) {
@@ -2047,7 +2073,7 @@
             accEl.textContent = `${accuracy}%`;
             accEl.style.color = accuracy > 110 ? '#D32F2F' : (accuracy < 90 ? '#388E3C' : '#333');
 
-            // 4.3 標籤頻率 (非暫停、非待辦) -> Pool C
+            // 4.3 標籤頻率
             const tagCounts = {};
             tasksActiveOrDone.forEach(t => {
                 const tagId = (t.tagIds && t.tagIds.length > 0) ? t.tagIds[0] : 'other';
@@ -2072,7 +2098,6 @@
                 }
                 const data = tagCounts[tagId];
                 const widthPct = (data.count / maxCount) * 100;
-                // Smart Text Color for bar
                 const textColor = window.getTextColorForBg(tagColor);
                 
                 return `
@@ -2089,7 +2114,7 @@
             }).join('');
             if (topTags.length === 0) rankContainer.innerHTML = '<div style="text-align:center; color:#AAA; padding:10px;">無資料</div>';
 
-            // 5. Sketch Stats (修練)
+            // 5. Sketch Stats
             const sketchLogs = appData.sketchLogs || [];
             let sketchCount = 0;
             let totalDaysInPeriod = 0;
