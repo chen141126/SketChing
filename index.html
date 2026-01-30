@@ -22,7 +22,7 @@
             --light-text: #A1887F;
             --accent-color: #D7CCC8;
             --card-bg: #FFFFFF;
-            --tag-urgent: #FFEBEE;
+            --tag-urgent: rgba(255, 235, 238, 0.6); /* ★ 改為半透明底色 (40% 透明度 = 0.6 不透明) */
             --tag-text-urgent: #C62828;
             --tag-normal: #E3F2FD;
             --tag-text-normal: #1565C0;
@@ -182,7 +182,7 @@
             cursor: pointer; z-index: 20; display: flex; align-items: center; gap: 2px;
         }
         .deadline-count {
-            font-size: 0.7rem; font-weight: 700; background: var(--tag-urgent); 
+            font-size: 0.6rem; font-weight: 700; background: var(--tag-urgent); backdrop-filter: blur(2px);  /* ★ 增加一點毛玻璃效果，疊在日期上時比較清楚 */
             padding: 0 4px; border-radius: 4px; color: var(--deadline-text);
         }
         .deadline-popover {
@@ -2966,8 +2966,10 @@ function calculateSchedule() {
                     const dls = appData.tasks.filter(t => t.deadline === dateStr);
                     if(dls.length > 0) {
                         const countBadge = dls.length > 1 ? `<span class="deadline-count">${dls.length}</span>` : '';
+                        // ★ 修改：先放數量 ${countBadge}，再放旗子 <i>
+                        // 這樣靠右對齊時，旗子會在最右邊角落，數量框往左延伸
                         html += `<div class="deadline-flag" onclick="window.toggleDeadlinePopover(event, '${dateStr}', ${dObj.getDay()})">
-                                    <i class="fa-solid fa-flag"></i> ${countBadge}
+                                    ${countBadge} <i class="fa-solid fa-flag"></i>
                                  </div>`;
                     }
                     
