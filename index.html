@@ -390,6 +390,27 @@
         .tag-drag-handle { padding: 0 10px 0 0; color: #BBB; cursor: grab; }
         .tag-actions { display: flex; gap: 12px; align-items: center; }
 
+        /* Tag Chart Group Selector */
+        .tag-group-selector {
+            display: flex; background: #EEE; border-radius: 8px; padding: 2px;
+            margin-bottom: 8px; width: 100%;
+        }
+        .tag-group-btn {
+            flex: 1; border: none; background: transparent; padding: 6px;
+            font-size: 0.8rem; font-weight: 700; color: #888; cursor: pointer;
+            border-radius: 6px; transition: all 0.2s;
+        }
+        .tag-group-btn.active {
+            background: #FFF; color: var(--primary-color);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        
+        /* Tag List Item Group Indicator */
+        .tag-group-badge {
+            font-size: 0.65rem; padding: 2px 5px; border-radius: 4px;
+            background: #EEE; color: #666; margin-right: 6px; font-weight: 700;
+        }
+
         .sub-item-view-list { margin-bottom: 12px; border: 1px solid #EEE; border-radius: 8px; overflow: hidden; }
         .sub-item-view-row { 
             padding: 8px 12px; border-bottom: 1px solid #EEE; 
@@ -1369,11 +1390,18 @@
                 <button class="icon-btn" onclick="window.closeModal('tagManagerModal')"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body">
+                <div class="tag-group-selector">
+                    <button class="tag-group-btn active" id="tagGroup1Btn" onclick="window.setTagGroup('group1')">群組 A (來源/急件)</button>
+                    <button class="tag-group-btn" id="tagGroup2Btn" onclick="window.setTagGroup('group2')">群組 B (風格/主題)</button>
+                </div>
+                <input type="hidden" id="newTagGroup" value="group1">
+
                 <div style="display:flex; gap:8px; margin-bottom:15px;">
                     <input type="text" id="newTagName" class="form-control" placeholder="名稱" style="margin:0; flex:2;">
                     <input type="color" id="newTagColor" class="form-control" value="#E3F2FD" style="margin:0; flex:1; height:42px; padding:2px;">
                     <button id="btnAddTag" class="btn btn-primary" style="flex:1;" onclick="window.addTag()">新增</button>
                 </div>
+                
                 <div id="tagListContainer"></div>
             </div>
         </div>
@@ -3668,14 +3696,43 @@ function calculateSchedule() {
             window.openModal('tagManagerModal');
         };
 
+        // --- Tag Manager Logic Upgrade (Phase 34) ---
+        
+        window.setTagGroup = function(group) {
+            document.getElementById('newTagGroup').value = group;
+            document.getElementById('tagGroup1Btn').classList.toggle('active', group === 'group1');
+            document.getElementById('tagGroup2Btn').classList.toggle('active', group === 'group2');
+        };
+
+        window.openTagManager = function() {
+            window.editingTagId = null; 
+            document.getElementById('newTagName').value = '';
+            document.getElementById('newTagColor').value = '#E3F2FD';
+            document.getElementById('btnAddTag').textContent = '新增';
+            
+            // 預設重置為 Group 1
+            window.setTagGroup('group1');
+            
+            window.renderTagList();
+            window.openModal('tagManagerModal');
+        };
+
         window.renderTagList = function() {
             const container = document.getElementById('tagListContainer');
             container.innerHTML = appData.settings.tags.map((tag, idx) => {
                 const textColor = window.getTextColorForBg(tag.color);
+                // 如果沒有設定群組，預設為 group1
+                const group = tag.chartGroup || 'group1'; 
+                const groupLabel = group === 'group1' ? 'A' : 'B';
+                const groupColor = group === 'group1' ? '#E0E0E0' : '#FFCCBC'; // A=灰, B=橘 區分一下
+                
                 return `
                     <div class="sortable-tag-item" data-id="${tag.id}" data-index="${idx}">
                         <div style="display:flex; align-items:center; gap:8px; flex:1;">
                             <i class="fa-solid fa-bars tag-drag-handle"></i>
+                            
+                            <div class="tag-group-badge" style="background:${groupColor}">${groupLabel}</div>
+                            
                             <div style="width:20px; height:20px; background:${tag.color}; border-radius:4px; border:1px solid rgba(0,0,0,0.1);"></div>
                             <span style="font-weight:600; color:#333;">${tag.name}</span>
                         </div>
@@ -3687,7 +3744,6 @@ function calculateSchedule() {
                 `;
             }).join('');
             
-            // Initialize drag logic
             document.querySelectorAll('.sortable-tag-item').forEach(el => {
                 window.initTagSort(el);
             });
@@ -3775,6 +3831,7 @@ function calculateSchedule() {
         window.addTag = function() {
             const name = document.getElementById('newTagName').value.trim();
             const color = document.getElementById('newTagColor').value;
+            const group = document.getElementById('newTagGroup').value; // 取得目前的群組設定
             const btn = document.getElementById('btnAddTag');
 
             if(!name) return;
@@ -3785,27 +3842,33 @@ function calculateSchedule() {
                 if(t) {
                     t.name = name;
                     t.color = color;
+                    t.chartGroup = group; // 更新群組
                 }
                 window.editingTagId = null;
                 btn.textContent = '新增';
             } else {
                 // Create New
-                appData.settings.tags.push({ id: Date.now(), name, color });
+                appData.settings.tags.push({ 
+                    id: Date.now(), 
+                    name, 
+                    color, 
+                    chartGroup: group // 存入群組
+                });
             }
             
             // Reset Inputs
             document.getElementById('newTagName').value = '';
             document.getElementById('newTagColor').value = '#E3F2FD';
+            window.setTagGroup('group1'); // 新增完後重置回 A 群組
             
             saveData();
             window.renderTagList();
             
-            // Live update if adding from task modal
             if(document.getElementById('addTaskModal').classList.contains('active')) {
                  const container = document.getElementById('multiTagContainer');
                  const checkedInputs = container.querySelectorAll('input:checked');
                  const currentIds = Array.from(checkedInputs).map(cb => parseInt(cb.value));
-                 populateMultiTag(currentIds);
+                 window.populateMultiTag(currentIds);
             }
         };
 
@@ -3814,6 +3877,10 @@ function calculateSchedule() {
             if(!t) return;
             document.getElementById('newTagName').value = t.name;
             document.getElementById('newTagColor').value = t.color;
+            
+            // 載入該標籤的群組設定，若無則預設 group1
+            window.setTagGroup(t.chartGroup || 'group1');
+            
             window.editingTagId = id;
             document.getElementById('btnAddTag').textContent = '更新';
         };
