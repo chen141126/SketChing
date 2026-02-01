@@ -1410,8 +1410,8 @@
             </div>
             <div class="modal-body">
                 <div class="tag-group-selector">
-                    <button class="tag-group-btn active" id="tagGroup1Btn" onclick="window.setTagGroup('group1')">群組 A (類型)</button>
-                    <button class="tag-group-btn" id="tagGroup2Btn" onclick="window.setTagGroup('group2')">群組 B (品項)</button>
+                    <button class="tag-group-btn active" id="tagGroup1Btn" onclick="window.setTagGroup('group1')">群組 A (來源)</button>
+                    <button class="tag-group-btn" id="tagGroup2Btn" onclick="window.setTagGroup('group2')">群組 B (項目)</button>
                 </div>
                 <input type="hidden" id="newTagGroup" value="group1">
 
@@ -2061,7 +2061,7 @@
                 }
             }
             if(revContainer) {
-                renderDualPie('revenuePieContainer', '群組 A (來源)', groupA_Data, '群組 B (風格)', groupB_Data, 'money');
+                renderDualPie('revenuePieContainer', '來源', groupA_Data, '項目', groupB_Data, 'money');
             }
 
 
@@ -2091,13 +2091,13 @@
                 itemRatioCommCard = document.createElement('div');
                 itemRatioCommCard.className = 'stats-card';
                 itemRatioCommCard.id = 'statsItemRatioCard_Comm';
-                itemRatioCommCard.innerHTML = `<span class="stats-label">品項比例 (Commercial Items)</span><div id="itemRatioCommContainer"></div>`;
+                itemRatioCommCard.innerHTML = `<span class="stats-label">品項比例</span><div id="itemRatioCommContainer"></div>`;
                 parentPerf.appendChild(itemRatioCommCard);
             }
             // 自動搬家邏輯
             if(itemRatioCommCard.parentNode !== parentPerf) parentPerf.appendChild(itemRatioCommCard);
             
-            renderDualPie('itemRatioCommContainer', '角色 (xN)', commItemsChar, '固定/背景', commItemsFixed, 'count');
+            renderDualPie('itemRatioCommContainer', '人物', commItemsChar, '背景', commItemsFixed, 'count');
 
 
             // --- Section 2: 戰鬥數值 (Practice / ID: statsContentEconomy) ---
@@ -2177,13 +2177,13 @@
                 itemRatioPracCard = document.createElement('div');
                 itemRatioPracCard.className = 'stats-card';
                 itemRatioPracCard.id = 'statsItemRatioCard_Prac';
-                itemRatioPracCard.innerHTML = `<span class="stats-label">品項比例 (Practice Items)</span><div id="itemRatioPracContainer"></div>`;
+                itemRatioPracCard.innerHTML = `<span class="stats-label">品項比例</span><div id="itemRatioPracContainer"></div>`;
                 // 插入在 Sketch Stats 之前
                 const sketchCard = document.getElementById('statsSketchCount').closest('.stats-card');
                 parentEco.insertBefore(itemRatioPracCard, sketchCard);
             }
             
-            renderDualPie('itemRatioPracContainer', '角色 (xN)', pracItemsChar, '固定/背景', pracItemsFixed, 'count');
+            renderDualPie('itemRatioPracContainer', '人物', pracItemsChar, '背景', pracItemsFixed, 'count');
 
 
             // 2.5 Sketch Stats (維持原樣)
