@@ -863,7 +863,7 @@
             <!-- Tab Content: Economy -->
             <div id="statsContentEconomy" style="display:none;">
                 <div class="stats-card">
-                    <span class="stats-label">爆肝指數 (Total Grind)</span>
+                    <span class="stats-label">爆肝指數</span>
                     <div style="display:flex; justify-content:space-around; text-align:center; margin-top:10px;">
                         <div>
                             <div class="stats-val-big" id="statsTotalHours">0h</div>
@@ -877,20 +877,7 @@
                 </div>
 
                 <div class="stats-card">
-                    <span class="stats-label">預言家準確率 (Actual / Est)</span>
-                    <div class="stats-val-big" id="statsAccuracy">100%</div>
-                    <div style="font-size:0.8rem; color:#888; margin-top:4px;">
-                        > 100% 代表超時 (Overtime)
-                    </div>
-                </div>
-                
-                <div class="stats-card">
-                    <span class="stats-label">標籤頻率 (Top 5 Tags)</span>
-                    <div id="statsTagRank" style="margin-top:10px;"></div>
-                </div>
-
-                <div class="stats-card">
-                    <span class="stats-label">修練 (Sketch Habit)</span>
+                    <span class="stats-label">修練</span>
                     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
                         <div>
                             <div class="stats-val-big" id="statsSketchCount" style="color:#EF6C00;">0 天</div>
@@ -902,17 +889,32 @@
                         <div class="rank-bar-fill" id="statsSketchBar" style="width:0%; background:#FF9800;"></div>
                     </div>
                 </div>
+
+                <div class="stats-card">
+                    <span class="stats-label">預言家準確率</span>
+                    <div class="stats-val-big" id="statsAccuracy">100%</div>
+                    <div style="font-size:0.8rem; color:#888; margin-top:4px;">
+                        > 100% 代表超時
+                    </div>
+                </div>
+                
+                <div class="stats-card">
+                    <span class="stats-label">標籤頻率</span>
+                    <div id="statsTagRank" style="margin-top:10px;"></div>
+                </div>
+
+                
             </div>
 
             <!-- Tab Content: Performance -->
             <div id="statsContentPerformance">
                 <div class="stats-card">
-                    <span class="stats-label">總收益 (Total Revenue)</span>
+                    <span class="stats-label">總收益</span>
                     <div class="stats-val-big" id="statsTotalRevenue">NT$ 0</div>
                 </div>
 
                 <div class="stats-card">
-                    <span class="stats-label">薪資條 (Real Hourly Rate)</span>
+                    <span class="stats-label">薪資條</span>
                     <div class="stats-val-big" id="statsRealHourly" style="margin-bottom:8px;">$0 / hr</div>
                     
                     <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#888;">
@@ -2178,10 +2180,14 @@
                 itemRatioPracCard.className = 'stats-card';
                 itemRatioPracCard.id = 'statsItemRatioCard_Prac';
                 itemRatioPracCard.innerHTML = `<span class="stats-label">品項比例</span><div id="itemRatioPracContainer"></div>`;
-                // 插入在 Sketch Stats 之前
-                const sketchCard = document.getElementById('statsSketchCount').closest('.stats-card');
-                parentEco.insertBefore(itemRatioPracCard, sketchCard);
+                
             }
+
+            // ★ 定位邏輯 (統一寫在這裡，不管是不是新建的，都要強制排好隊)
+            const sketchCard = document.getElementById('statsSketchCount').closest('.stats-card');
+            
+            // 強制把品項比例卡片移到「修練」卡片的後面 (順序：修練 -> 品項)
+            sketchCard.after(itemRatioPracCard);
             
             renderDualPie('itemRatioPracContainer', '人物', pracItemsChar, '背景', pracItemsFixed, 'count');
 
