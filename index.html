@@ -732,6 +732,25 @@
         .rank-bar-bg { flex: 1; height: 6px; background: #F5F5F5; border-radius: 3px; margin: 0 10px; overflow: hidden; }
         .rank-bar-fill { height: 100%; background: var(--primary-color); border-radius: 3px; }
 
+        /* --- Phase 35: Dual Pie Chart Layout --- */
+        .dual-pie-row {
+            display: flex; justify-content: space-around; align-items: flex-start;
+            gap: 8px; flex-wrap: wrap; margin-top: 10px;
+        }
+        .pie-column {
+            display: flex; flex-direction: column; align-items: center;
+            flex: 1; min-width: 140px; /* 確保最小寬度，太窄會自動換行 */
+        }
+        .pie-title {
+            font-size: 0.85rem; font-weight: 700; color: var(--primary-color);
+            margin-bottom: 8px; text-align: center;
+        }
+        /* 稍微縮小圓餅圖以適應並排 */
+        .css-pie-chart.small { width: 110px; height: 110px; }
+        .css-pie-hole.small { width: 66px; height: 66px; font-size: 0.75rem; }
+        
+        .legend-grid.small-text .legend-item { font-size: 0.7rem; }
+
     </style>
 <script type="importmap">
 {
@@ -1391,8 +1410,8 @@
             </div>
             <div class="modal-body">
                 <div class="tag-group-selector">
-                    <button class="tag-group-btn active" id="tagGroup1Btn" onclick="window.setTagGroup('group1')">群組 A (來源/急件)</button>
-                    <button class="tag-group-btn" id="tagGroup2Btn" onclick="window.setTagGroup('group2')">群組 B (風格/主題)</button>
+                    <button class="tag-group-btn active" id="tagGroup1Btn" onclick="window.setTagGroup('group1')">群組 A (類型)</button>
+                    <button class="tag-group-btn" id="tagGroup2Btn" onclick="window.setTagGroup('group2')">群組 B (品項)</button>
                 </div>
                 <input type="hidden" id="newTagGroup" value="group1">
 
@@ -1904,34 +1923,95 @@
             };
 
             // ★ 準備數據池
-            // Pool A: 已完成 (Completed) -> 用於「總收益」、「真實薪資」、「完成任務數」
-            const tasksCompleted = appData.tasks.filter(t => t.status === 'completed' && isInRange(t));
+            const tasksUnconditional = appData.tasks.filter(t => isInRange(t)); // 全包 (for 預估/工時)
+            const tasksCompleted = appData.tasks.filter(t => t.status === 'completed' && isInRange(t)); // 已完成 (for 真實收益)
             
-            // Pool B: 無條件 (Unconditional) -> 用於「預估薪資」、「總工時(爆肝)」
-            // 包含所有狀態
-            const tasksUnconditional = appData.tasks.filter(t => isInRange(t));
-
-            // Pool C: 實務 (Active + Completed) -> 用於「標籤頻率」、「品項比例」
-            // 排除待辦(backlog)與暫停(paused)
+            // ★ 核心池：非待辦、非暫停 (Active + Completed + Locked)
             const tasksActiveOrDone = appData.tasks.filter(t => 
                 (t.status === 'active' || t.status === 'completed' || t.status === 'locked') && isInRange(t)
             );
 
-            // Pool D: 進行中/待辦 (Active Only) -> 用於「待辦任務數」
-            // 符合 "未完成、未暫停、非待辦區" 的定義
-            const tasksActive = appData.tasks.filter(t => t.status === 'active' && isInRange(t));
+            // ★ 拆分：商業 (Commercial) vs 練圖 (Practice)
+            const tasksCommercial = tasksActiveOrDone.filter(t => (t.price || 0) > 0);
+            const tasksPractice = tasksActiveOrDone.filter(t => (t.price || 0) === 0);
+
+            // --- Helper: 繪製雙圓餅圖 ---
+            const renderDualPie = (containerId, titleLeft, dataLeft, titleRight, dataRight, valueType = 'money') => {
+                const container = document.getElementById(containerId);
+                if(!container) return;
+
+                const paletteA = ['#FFCDD2', '#F8BBD0', '#E1BEE7', '#D1C4E9', '#C5CAE9'];
+                const paletteB = ['#FFCCBC', '#FFE0B2', '#FFECB3', '#C8E6C9', '#B2DFDB'];
+
+                const buildPie = (data, palette, title) => {
+                    const sortedKeys = Object.keys(data).sort((a,b) => data[b].val - data[a].val);
+                    const totalVal = sortedKeys.reduce((sum, k) => sum + data[k].val, 0);
+                    
+                    let conic = '';
+                    let deg = 0;
+                    let legendHtml = '';
+                    
+                    sortedKeys.forEach((key, idx) => {
+                        const item = data[key];
+                        const pct = totalVal > 0 ? (item.val / totalVal) * 100 : 0;
+                        const sliceDeg = (pct / 100) * 360;
+                        const color = palette[idx % palette.length];
+                        
+                        if(totalVal > 0) {
+                            conic += `${color} ${deg}deg ${deg + sliceDeg}deg, `;
+                            deg += sliceDeg;
+                        }
+                        
+                        // Legend 顯示：名稱 (數量 - 金額/比例)
+                        let valText = '';
+                        if(valueType === 'money') valText = `$${item.val.toLocaleString()}`;
+                        else valText = `${Math.round(pct)}%`;
+
+                        legendHtml += `
+                            <div class="legend-item">
+                                <div class="legend-color" style="background:${color}"></div>
+                                <span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                                    ${item.name} <span style="color:#888; font-size:0.9em;">(${item.count}件 - ${valText})</span>
+                                </span>
+                            </div>
+                        `;
+                    });
+
+                    const bgStyle = conic ? `conic-gradient(${conic.slice(0, -2)})` : '#F0F0F0';
+                    const centerText = valueType === 'money' ? 'Revenue' : 'Count';
+
+                    return `
+                        <div class="pie-column">
+                            <div class="pie-title">${title}</div>
+                            <div class="pie-chart-container" style="margin:0;">
+                                <div class="css-pie-chart small" style="background:${bgStyle}">
+                                    <div class="css-pie-hole small">${centerText}</div>
+                                </div>
+                            </div>
+                            <div class="legend-grid small-text" style="width:100%; grid-template-columns:1fr;">
+                                ${legendHtml || '<div style="text-align:center;color:#ccc;font-size:0.7rem;">無資料</div>'}
+                            </div>
+                        </div>
+                    `;
+                };
+
+                container.innerHTML = `
+                    <div class="dual-pie-row">
+                        ${buildPie(dataLeft, paletteA, titleLeft)}
+                        ${buildPie(dataRight, paletteB, titleRight)}
+                    </div>
+                `;
+            };
 
 
-            // --- 3. Economy Stats (煉金成果) ---
+            // --- Section 1: 煉金成果 (Commercial / ID: statsContentPerformance) ---
             
-            // 3.1 總收益
+            // 1.1 總收益 & 薪資條 (維持原樣)
             const totalRevenue = tasksCompleted.reduce((sum, t) => sum + (t.price || 0), 0);
             document.getElementById('statsTotalRevenue').textContent = window.formatMoney(totalRevenue);
 
-            // 3.2 薪資條
             const totalHoursLogged_Completed = tasksCompleted.reduce((sum, t) => sum + (t.loggedHours || 0), 0);
             const realHourly = totalHoursLogged_Completed > 0 ? Math.round(totalRevenue / totalHoursLogged_Completed) : 0;
-            
             const totalEstRevenue_All = tasksUnconditional.reduce((sum, t) => sum + (t.price || 0), 0);
             const totalHoursEst_All = tasksUnconditional.reduce((sum, t) => sum + (t.estimatedHours || 0), 0);
             const estHourly = totalHoursEst_All > 0 ? Math.round(totalEstRevenue_All / totalHoursEst_All) : 0;
@@ -1939,231 +2019,185 @@
             document.getElementById('statsRealHourly').textContent = isGlassHeart ? '🙈 / hr' : `$${realHourly} / hr`;
             document.getElementById('valEstRate').textContent = isGlassHeart ? '🙈' : `$${estHourly}`;
             document.getElementById('valRealRate').textContent = isGlassHeart ? '🙈' : `$${realHourly}`;
-
             const maxRate = Math.max(realHourly, estHourly) || 1;
             document.getElementById('barEstRate').style.width = `${Math.min(100, (estHourly / maxRate) * 100)}%`;
             const realBarEl = document.getElementById('barRealRate');
             realBarEl.style.width = `${Math.min(100, (realHourly / maxRate) * 100)}%`;
             realBarEl.style.backgroundColor = (estHourly > 0 && realHourly < estHourly * 0.8) ? '#EF5350' : '#42A5F5';
 
+            // 1.2 金主分析 (Commercial Tag Analysis) - Dual Pie
+            // Data Prep
+            const groupA_Data = {};
+            const groupB_Data = {};
 
-            // 3.3 金主分析 (圓餅圖) - Revenue
-            const tagRevenue = {};
-            let knownRev = 0;
-            tasksCompleted.forEach(t => {
+            tasksCommercial.forEach(t => {
                 const tRev = t.price || 0;
-                knownRev += tRev;
-                const tagId = (t.tagIds && t.tagIds.length > 0) ? t.tagIds[0] : 'other';
-                tagRevenue[tagId] = (tagRevenue[tagId] || 0) + tRev;
-            });
-            if (knownRev === 0 && tasksCompleted.length > 0) tagRevenue['other'] = 0;
-
-            const sortedRevTags = Object.keys(tagRevenue).sort((a,b) => tagRevenue[b] - tagRevenue[a]);
-            let conicStrRev = '';
-            let currentDegRev = 0;
-            const legendRev = document.getElementById('revenueLegend');
-            legendRev.innerHTML = '';
-            const paletteRev = ['#FFCDD2', '#F8BBD0', '#E1BEE7', '#D1C4E9', '#C5CAE9', '#BBDEFB', '#B3E5FC', '#B2EBF2', '#B2DFDB', '#C8E6C9'];
-
-            sortedRevTags.forEach((tagId, idx) => {
-                const rev = tagRevenue[tagId];
-                const pct = knownRev > 0 ? (rev / knownRev) * 100 : 0;
-                const deg = (pct / 100) * 360;
-                const color = paletteRev[idx % paletteRev.length];
-                
-                let tagName = '無標籤';
-                if(tagId !== 'other') {
-                    const tagObj = appData.settings.tags.find(g => g.id == tagId);
-                    if(tagObj) tagName = tagObj.name;
-                }
-
-                if (knownRev > 0) {
-                    conicStrRev += `${color} ${currentDegRev}deg ${currentDegRev + deg}deg, `;
-                    currentDegRev += deg;
-                }
-
-                if (pct > 0) {
-                    legendRev.innerHTML += `
-                        <div class="legend-item">
-                            <div class="legend-color" style="background:${color}"></div>
-                            <span>${tagName} (${Math.round(pct)}%)</span>
-                        </div>
-                    `;
+                if(t.tagIds && t.tagIds.length > 0) {
+                    t.tagIds.forEach(tid => {
+                        const tag = appData.settings.tags.find(g => g.id == tid);
+                        if(tag) {
+                            const group = tag.chartGroup || 'group1';
+                            const targetData = (group === 'group1') ? groupA_Data : groupB_Data;
+                            
+                            if(!targetData[tid]) targetData[tid] = { name: tag.name, val: 0, count: 0 };
+                            targetData[tid].val += tRev;
+                            targetData[tid].count += 1;
+                        }
+                    });
+                } else {
+                    // No Tag -> Assign to 'Other' in Group A? Or skip? Let's skip for cleaner charts or add 'No Tag'
                 }
             });
-            document.getElementById('revenuePieChart').style.background = conicStrRev ? `conic-gradient(${conicStrRev.slice(0, -2)})` : '#F0F0F0';
+
+            const parentPerf = document.getElementById('statsContentPerformance');
+            // 確保容器存在並清空舊內容 (因為結構變了)
+            let revContainer = document.getElementById('revenuePieContainer');
+            if(!revContainer) {
+                // 尋找舊的 card 並改造
+                const oldCard = document.getElementById('revenuePieChart')?.closest('.stats-card');
+                if(oldCard) {
+                    oldCard.innerHTML = `<span class="stats-label">金主分析 (Gold Owner)</span><div id="revenuePieContainer"></div>`;
+                    revContainer = document.getElementById('revenuePieContainer');
+                }
+            }
+            if(revContainer) {
+                renderDualPie('revenuePieContainer', '群組 A (來源)', groupA_Data, '群組 B (風格)', groupB_Data, 'money');
+            }
 
 
-            // ★★★ 修正與搬家：品項比例 (Item Ratio) ★★★
-            const itemCounts = {};
-            let totalItems = 0;
-            tasksActiveOrDone.forEach(t => {
-                if(t.selectedItemIndices && t.selectedItemIndices.length > 0) {
+            // 1.3 品項比例 (Commercial Items) - Dual Pie
+            // Data Prep
+            const commItemsChar = {}; // xN
+            const commItemsFixed = {}; // Fixed
+
+            tasksCommercial.forEach(t => {
+                if(t.selectedItemIndices) {
                     t.selectedItemIndices.forEach(idx => {
                         const itemDef = appData.settings.workItems[idx];
                         if(itemDef) {
-                            const name = itemDef.name;
-                            itemCounts[name] = (itemCounts[name] || 0) + 1;
-                            totalItems++;
+                            const isMulti = itemDef.isMultipliable !== false;
+                            const target = isMulti ? commItemsChar : commItemsFixed;
+                            if(!target[itemDef.name]) target[itemDef.name] = { name: itemDef.name, val: 0, count: 0 };
+                            target[itemDef.name].val += 1; // Count based for items
+                            target[itemDef.name].count += 1;
                         }
                     });
                 }
             });
-            
-            // ★ 關鍵修正：目標容器改為 'statsContentPerformance' (對應「煉金成果」)
-            const targetParent = document.getElementById('statsContentPerformance'); 
-            let itemRatioContainer = document.getElementById('statsItemRatioCard');
-            
-            if(!itemRatioContainer) {
-                // 如果不存在，建立它
-                itemRatioContainer = document.createElement('div');
-                itemRatioContainer.className = 'stats-card';
-                itemRatioContainer.id = 'statsItemRatioCard';
-                itemRatioContainer.innerHTML = `
-                    <span class="stats-label">品項比例</span>
-                    <div class="pie-chart-container">
-                        <div class="css-pie-chart" id="itemRatioPieChart">
-                            <div class="css-pie-hole">Items</div>
-                        </div>
-                    </div>
-                    <div class="legend-grid" id="itemRatioLegend"></div>
-                `;
-                targetParent.appendChild(itemRatioContainer);
-            } else {
-                // ★ 自動搬家：如果它已經存在但跑錯棚了 (在 statsContentEconomy)，把它抓回來
-                if(itemRatioContainer.parentNode !== targetParent) {
-                    targetParent.appendChild(itemRatioContainer);
-                }
+
+            // 確保容器存在
+            let itemRatioCommCard = document.getElementById('statsItemRatioCard_Comm');
+            if(!itemRatioCommCard) {
+                itemRatioCommCard = document.createElement('div');
+                itemRatioCommCard.className = 'stats-card';
+                itemRatioCommCard.id = 'statsItemRatioCard_Comm';
+                itemRatioCommCard.innerHTML = `<span class="stats-label">品項比例 (Commercial Items)</span><div id="itemRatioCommContainer"></div>`;
+                parentPerf.appendChild(itemRatioCommCard);
             }
-
-            const sortedItems = Object.keys(itemCounts).sort((a,b) => itemCounts[b] - itemCounts[a]);
-            let conicStrItem = '';
-            let currentDegItem = 0;
-            const legendItem = document.getElementById('itemRatioLegend');
-            legendItem.innerHTML = '';
-            const paletteItem = ['#FFAB91', '#FFCC80', '#FFE082', '#C5E1A5', '#80CBC4', '#90CAF9', '#9FA8DA', '#CE93D8', '#F48FB1', '#BCAAA4'];
-
-            sortedItems.forEach((name, idx) => {
-                const count = itemCounts[name];
-                const pct = totalItems > 0 ? (count / totalItems) * 100 : 0;
-                const deg = (pct / 100) * 360;
-                const color = paletteItem[idx % paletteItem.length];
-                if (totalItems > 0) {
-                    conicStrItem += `${color} ${currentDegItem}deg ${currentDegItem + deg}deg, `;
-                    currentDegItem += deg;
-                }
-                if (pct > 0) {
-                    legendItem.innerHTML += `
-                        <div class="legend-item">
-                            <div class="legend-color" style="background:${color}"></div>
-                            <span>${name} (${Math.round(pct)}%)</span>
-                        </div>
-                    `;
-                }
-            });
-            document.getElementById('itemRatioPieChart').style.background = conicStrItem ? `conic-gradient(${conicStrItem.slice(0, -2)})` : '#F0F0F0';
-
-
-            // --- 4. Performance Stats (戰鬥數值) ---
-
-            // 4.1 爆肝指數 (修改版：三欄位)
-            // 總工時 (Unconditional: loggedHours)
-            const totalGrindHours = tasksUnconditional.reduce((sum, t) => sum + (t.loggedHours || 0), 0);
+            // 自動搬家邏輯
+            if(itemRatioCommCard.parentNode !== parentPerf) parentPerf.appendChild(itemRatioCommCard);
             
-            // ★ 修改：拆分為「已完成」與「待辦中」
-            const countCompleted = tasksCompleted.length;
-            const countPending = tasksActive.length;
+            renderDualPie('itemRatioCommContainer', '角色 (xN)', commItemsChar, '固定/背景', commItemsFixed, 'count');
 
+
+            // --- Section 2: 戰鬥數值 (Practice / ID: statsContentEconomy) ---
+            
+            // 2.1 爆肝指數 & 2.2 準確率 & 2.3 標籤頻率 (維持原樣)
+            const totalGrindHours = tasksUnconditional.reduce((sum, t) => sum + (t.loggedHours || 0), 0);
+            const countCompleted = tasksCompleted.length;
+            const countPending = appData.tasks.filter(t => t.status === 'active' && isInRange(t)).length;
+            
             const grindCard = document.getElementById('statsTotalHours').closest('.stats-card');
-            // 重繪這張卡片的內部 HTML 以支援三欄位
             grindCard.innerHTML = `
                 <span class="stats-label">爆肝指數 (Total Grind)</span>
                 <div style="display:flex; justify-content:space-around; text-align:center; margin-top:10px;">
-                    <div>
-                        <div class="stats-val-big" id="statsTotalHours">${totalGrindHours.toFixed(1)}h</div>
-                        <div style="font-size:0.8rem; color:#888;">總工時</div>
-                    </div>
-                    <div>
-                        <div class="stats-val-big" style="color:#2E7D32;">${countCompleted}</div>
-                        <div style="font-size:0.8rem; color:#888;">已完成</div>
-                    </div>
-                     <div>
-                        <div class="stats-val-big" style="color:#EF6C00;">${countPending}</div>
-                        <div style="font-size:0.8rem; color:#888;">待辦中</div>
-                    </div>
+                    <div><div class="stats-val-big" id="statsTotalHours">${totalGrindHours.toFixed(1)}h</div><div style="font-size:0.8rem; color:#888;">總工時</div></div>
+                    <div><div class="stats-val-big" style="color:#2E7D32;">${countCompleted}</div><div style="font-size:0.8rem; color:#888;">已完成</div></div>
+                    <div><div class="stats-val-big" style="color:#EF6C00;">${countPending}</div><div style="font-size:0.8rem; color:#888;">待辦中</div></div>
                 </div>
             `;
 
-            // 4.2 預言家準確率
             const totalHoursEst_Completed = tasksCompleted.reduce((sum, t) => sum + (t.estimatedHours || 0), 0);
             let accuracy = 0;
-            if (totalHoursEst_Completed > 0) {
-                accuracy = Math.round((totalHoursLogged_Completed / totalHoursEst_Completed) * 100);
-            }
+            if (totalHoursEst_Completed > 0) accuracy = Math.round((totalHoursLogged_Completed / totalHoursEst_Completed) * 100);
             const accEl = document.getElementById('statsAccuracy');
             accEl.textContent = `${accuracy}%`;
             accEl.style.color = accuracy > 110 ? '#D32F2F' : (accuracy < 90 ? '#388E3C' : '#333');
 
-            // 4.3 標籤頻率
+            // 標籤頻率 (維持 Top 5)
             const tagCounts = {};
             tasksActiveOrDone.forEach(t => {
                 const tagId = (t.tagIds && t.tagIds.length > 0) ? t.tagIds[0] : 'other';
-                if (!tagCounts[tagId]) tagCounts[tagId] = { count: 0, hours: 0 };
+                if (!tagCounts[tagId]) tagCounts[tagId] = { count: 0 };
                 tagCounts[tagId].count++;
-                tagCounts[tagId].hours += (t.loggedHours || 0);
             });
-
             const topTags = Object.keys(tagCounts).sort((a,b) => tagCounts[b].count - tagCounts[a].count).slice(0, 5);
             const maxCount = topTags.length > 0 ? tagCounts[topTags[0]].count : 1;
-
             const rankContainer = document.getElementById('statsTagRank');
             rankContainer.innerHTML = topTags.map(tagId => {
-                let tagName = '無標籤';
-                let tagColor = '#DDD';
+                let tagName = '無標籤', tagColor = '#DDD';
                 if(tagId !== 'other') {
                     const tagObj = appData.settings.tags.find(g => g.id == tagId);
-                    if(tagObj) {
-                        tagName = tagObj.name;
-                        tagColor = tagObj.color;
-                    }
+                    if(tagObj) { tagName = tagObj.name; tagColor = tagObj.color; }
                 }
-                const data = tagCounts[tagId];
-                const widthPct = (data.count / maxCount) * 100;
-                const textColor = window.getTextColorForBg(tagColor);
-                
+                const widthPct = (tagCounts[tagId].count / maxCount) * 100;
                 return `
                     <div class="rank-row">
-                        <div style="width:60px; font-size:0.8rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${tagName}</div>
-                        <div class="rank-bar-bg">
-                            <div class="rank-bar-fill" style="width:${widthPct}%; background:${tagColor}"></div>
-                        </div>
-                        <div style="font-size:0.75rem; color:#666; text-align:right;">
-                            ${data.count}張
-                        </div>
+                        <div style="width:60px; font-size:0.8rem; font-weight:700; overflow:hidden; text-overflow:ellipsis;">${tagName}</div>
+                        <div class="rank-bar-bg"><div class="rank-bar-fill" style="width:${widthPct}%; background:${tagColor}"></div></div>
+                        <div style="font-size:0.75rem; color:#666;">${tagCounts[tagId].count}</div>
                     </div>
                 `;
-            }).join('');
-            if (topTags.length === 0) rankContainer.innerHTML = '<div style="text-align:center; color:#AAA; padding:10px;">無資料</div>';
+            }).join('') || '<div style="text-align:center;color:#AAA;">無資料</div>';
 
-            // 5. Sketch Stats
+
+            // 2.4 ★ 新增：品項比例 (Practice Items) - Dual Pie
+            // Data Prep (只算 tasksPractice)
+            const pracItemsChar = {};
+            const pracItemsFixed = {};
+
+            tasksPractice.forEach(t => {
+                if(t.selectedItemIndices) {
+                    t.selectedItemIndices.forEach(idx => {
+                        const itemDef = appData.settings.workItems[idx];
+                        if(itemDef) {
+                            const isMulti = itemDef.isMultipliable !== false;
+                            const target = isMulti ? pracItemsChar : pracItemsFixed;
+                            if(!target[itemDef.name]) target[itemDef.name] = { name: itemDef.name, val: 0, count: 0 };
+                            target[itemDef.name].val += 1;
+                            target[itemDef.name].count += 1;
+                        }
+                    });
+                }
+            });
+
+            const parentEco = document.getElementById('statsContentEconomy');
+            let itemRatioPracCard = document.getElementById('statsItemRatioCard_Prac');
+            if(!itemRatioPracCard) {
+                itemRatioPracCard = document.createElement('div');
+                itemRatioPracCard.className = 'stats-card';
+                itemRatioPracCard.id = 'statsItemRatioCard_Prac';
+                itemRatioPracCard.innerHTML = `<span class="stats-label">品項比例 (Practice Items)</span><div id="itemRatioPracContainer"></div>`;
+                // 插入在 Sketch Stats 之前
+                const sketchCard = document.getElementById('statsSketchCount').closest('.stats-card');
+                parentEco.insertBefore(itemRatioPracCard, sketchCard);
+            }
+            
+            renderDualPie('itemRatioPracContainer', '角色 (xN)', pracItemsChar, '固定/背景', pracItemsFixed, 'count');
+
+
+            // 2.5 Sketch Stats (維持原樣)
             const sketchLogs = appData.sketchLogs || [];
             let sketchCount = 0;
-            let totalDaysInPeriod = 0;
             const yStr = currentDate.getFullYear().toString();
             const mStr = (currentDate.getMonth() + 1).toString().padStart(2, '0');
-
             if (viewMode === 'year') {
                 sketchCount = sketchLogs.filter(d => d.startsWith(yStr + '-')).length;
-                totalDaysInPeriod = ((currentDate.getFullYear() % 4 === 0 && currentDate.getFullYear() % 100 !== 0) || currentDate.getFullYear() % 400 === 0) ? 366 : 365;
             } else {
-                const prefix = `${yStr}-${mStr}`;
-                sketchCount = sketchLogs.filter(d => d.startsWith(prefix)).length;
-                totalDaysInPeriod = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+                sketchCount = sketchLogs.filter(d => d.startsWith(`${yStr}-${mStr}`)).length;
             }
-
-            let sketchRate = 0;
-            if (totalDaysInPeriod > 0) sketchRate = Math.round((sketchCount / totalDaysInPeriod) * 100);
-
+            const totalDays = viewMode==='year' ? 365 : new Date(year, month, 0).getDate();
+            const sketchRate = Math.round((sketchCount/totalDays)*100);
             document.getElementById('statsSketchCount').textContent = `${sketchCount} 天`;
             document.getElementById('statsSketchRate').textContent = `出勤率 ${sketchRate}%`;
             document.getElementById('statsSketchBar').style.width = `${sketchRate}%`;
