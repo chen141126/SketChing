@@ -883,8 +883,34 @@
                     
                     <div id="fbSyncActions" style="display:none; flex-direction:column; gap:8px; margin-top:10px; border-top:1px dashed #eee; padding-top:10px;">
                         <button class="btn btn-success" onclick="window.CloudSync.upload()"><i class="fa-solid fa-cloud-arrow-up"></i> 手動上傳 (覆蓋雲端)</button>
-                        <button class="btn btn-warning" onclick="window.CloudSync.download()"><i class="fa-solid fa-cloud-arrow-down"></i> 從雲端下載 (覆蓋本機)</button>
+                        <button class="btn btn-warning" onclick="window.CloudSync.download()"><i class="fa-solid fa-cloud-arrow-down"></i> 下載最新版 (覆蓋本機)</button>
                     </div>
+
+                    <div id="fbTimeMachineSection" style="display:none; margin-top:15px; background:#FAFAFA; padding:10px; border-radius:8px; border:1px solid #EEE;">
+                        <h4 style="margin:0 0 10px 0; color:#5D4037; font-size:0.9rem; display:flex; align-items:center; gap:6px;">
+                            <i class="fa-solid fa-clock-rotate-left"></i> 時光機 (過去 7 天)
+                        </h4>
+                        <button class="btn btn-secondary" style="width:100%; font-size:0.8rem;" onclick="window.CloudSync.listBackups()">
+                            <i class="fa-solid fa-list-ul"></i> 載入歷史存檔列表
+                        </button>
+                        <div id="fbBackupList" style="margin-top:10px; display:flex; flex-direction:column; gap:6px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>💾 本機檔案備份 (JSON)</h3>
+                <p style="font-size:0.8rem; color:#666; margin-bottom:10px;">
+                    下載資料檔到裝置，或從檔案還原。這是最安全的離線備份方式。
+                </p>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-primary" style="flex:1" onclick="window.exportDataToJson()">
+                        <i class="fa-solid fa-download"></i> 匯出備份
+                    </button>
+                    <button class="btn btn-warning" style="flex:1" onclick="document.getElementById('importFileBtn').click()">
+                        <i class="fa-solid fa-file-import"></i> 匯入還原
+                    </button>
+                    <input type="file" id="importFileBtn" style="display:none" accept=".json" onchange="window.importDataFromJson(this)">
                 </div>
             </div>
             
@@ -1529,9 +1555,10 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getFirestore, doc, setDoc, getDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        // ★ 新增 collection, deleteDoc, getDocs, query, orderBy 等必要函式
+        import { getFirestore, doc, setDoc, getDoc, deleteDoc, collection, getDocs, query, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-        // Phase 22: Cloud Sync Module
+        // Phase 38 Final: Cloud Sync Module with Time Machine UI
         window.CloudSync = {
             app: null,
             auth: null,
@@ -1545,7 +1572,6 @@
                 
                 try {
                     const config = JSON.parse(configStr);
-                    // ★ 防呆：確保 config 物件存在且有內容
                     if(config && config.apiKey && config.projectId) {
                         this.app = initializeApp(config);
                         this.auth = getAuth(this.app);
@@ -1555,17 +1581,17 @@
                         onAuthStateChanged(this.auth, (user) => {
                             this.user = user;
                             this.updateUI();
+                            if(user) this.checkRollingBackup();
                         });
                         
                         // Populate Inputs
                         const apiKeyEl = document.getElementById('fbApiKey');
-                        if(apiKeyEl) { // 防止元素還沒渲染
+                        if(apiKeyEl) { 
                             document.getElementById('fbApiKey').value = config.apiKey || '';
                             document.getElementById('fbAuthDomain').value = config.authDomain || '';
                             document.getElementById('fbProjectId').value = config.projectId || '';
                             document.getElementById('fbAppId').value = config.appId || '';
                         }
-                        console.log("CloudSync Initialized");
                     }
                 } catch(e) {
                     console.error("CloudSync Init Failed:", e);
@@ -1585,7 +1611,7 @@
                 if(config.apiKey && config.projectId) {
                     localStorage.setItem('painterApp_firebase_config', JSON.stringify(config));
                     alert("設定已儲存，正在連線...");
-                    window.location.reload(); // Reload to re-init firebase cleanly
+                    window.location.reload(); 
                 } else {
                     alert("請輸入必要的 API Key 與 Project ID");
                 }
@@ -1611,6 +1637,8 @@
                 const loginBtn = document.getElementById('fbLoginBtn');
                 const logoutBtn = document.getElementById('fbLogoutBtn');
                 const actions = document.getElementById('fbSyncActions');
+                // ★ 新增：時光機區塊控制
+                const timeMachine = document.getElementById('fbTimeMachineSection');
                 
                 if(this.user) {
                     statusEl.textContent = `已連線: ${this.user.email}`;
@@ -1618,12 +1646,14 @@
                     loginBtn.style.display = 'none';
                     logoutBtn.style.display = 'block';
                     actions.style.display = 'flex';
+                    if(timeMachine) timeMachine.style.display = 'block'; // 登入後顯示時光機
                 } else if (this.isReady) {
                     statusEl.textContent = "狀態: 已就緒 (未登入)";
                     statusEl.style.color = '#FFA000';
                     loginBtn.style.display = 'block';
                     logoutBtn.style.display = 'none';
                     actions.style.display = 'none';
+                    if(timeMachine) timeMachine.style.display = 'none';
                 }
             },
             
@@ -1633,11 +1663,11 @@
                 try {
                     const docRef = doc(this.db, "users", this.user.uid);
                     await setDoc(docRef, {
-                        backupData: JSON.parse(JSON.stringify(payload)), // Ensure plain object
+                        backupData: JSON.parse(JSON.stringify(payload)), 
                         updatedAt: serverTimestamp()
                     });
                     if(!data) alert("上傳成功！");
-                    console.log("Cloud Backup Success");
+                    this.checkRollingBackup(payload);
                 } catch(e) {
                     console.error("Upload failed", e);
                     if(!data) alert("上傳失敗");
@@ -1645,33 +1675,67 @@
             },
             
             autoUpload: function(data) {
-                // Silent upload hook
                 if(this.isReady && this.user) {
-                    this.upload(data);
+                    this.uploadLogicSilent(data);
                 }
             },
             
+            uploadLogicSilent: async function(payload) {
+                try {
+                    const docRef = doc(this.db, "users", this.user.uid);
+                    await setDoc(docRef, {
+                        backupData: JSON.parse(JSON.stringify(payload)), 
+                        updatedAt: serverTimestamp()
+                    });
+                    this.checkRollingBackup(payload);
+                } catch(e) { console.error("Auto-Sync Error", e); }
+            },
+
+            checkRollingBackup: async function(payload = null) {
+                if(!this.user) return;
+                const todayStr = new Date().toISOString().split('T')[0];
+                const lastBackupDate = localStorage.getItem('last_rolling_backup_date');
+
+                if (lastBackupDate !== todayStr) {
+                    console.log("Performing Daily Rolling Backup...");
+                    const dataToSave = payload || appData;
+                    try {
+                        const backupRef = doc(this.db, "users", this.user.uid, "backups", todayStr);
+                        await setDoc(backupRef, {
+                            data: JSON.parse(JSON.stringify(dataToSave)),
+                            createdAt: serverTimestamp()
+                        });
+                        localStorage.setItem('last_rolling_backup_date', todayStr);
+                        this.pruneOldBackups();
+                    } catch(e) { console.error("Rolling Backup Failed", e); }
+                }
+            },
+
+            pruneOldBackups: async function() {
+                try {
+                    const backupsRef = collection(this.db, "users", this.user.uid, "backups");
+                    const snapshot = await getDocs(backupsRef);
+                    const backups = [];
+                    snapshot.forEach(doc => { backups.push({ id: doc.id, ref: doc.ref }); });
+                    backups.sort((a, b) => a.id.localeCompare(b.id));
+
+                    if (backups.length > 7) {
+                        const deleteCount = backups.length - 7;
+                        for (let i = 0; i < deleteCount; i++) {
+                            await deleteDoc(backups[i].ref);
+                        }
+                    }
+                } catch(e) { console.error("Prune Backups Failed", e); }
+            },
+
             download: async function() {
                 if(!this.user) return;
-                if(!confirm("確定從雲端下載資料覆蓋本機嗎？此操作無法復原。")) return;
-                
+                if(!confirm("確定從雲端下載「最新版」資料覆蓋本機嗎？")) return;
                 try {
                     const docRef = doc(this.db, "users", this.user.uid);
                     const docSnap = await getDoc(docRef);
-                    
                     if (docSnap.exists()) {
-                        const cloudData = docSnap.data().backupData;
-                        if(cloudData) {
-                            appData = cloudData;
-                            // Re-save to local to ensure consistency
-                            localStorage.setItem('painterApp_v9', JSON.stringify(appData));
-                            // Re-init Logic
-                            // We need to call functions from the main script. 
-                            // Since initData is on window, we can call it.
-                            window.initData(false); 
-                            window.renderStats(); // Update stats if open
-                            alert("同步完成！");
-                        }
+                        this.applyData(docSnap.data().backupData);
                     } else {
                         alert("雲端尚無備份資料");
                     }
@@ -1679,11 +1743,142 @@
                     console.error("Download failed", e);
                     alert("下載失敗");
                 }
+            },
+
+            // ★ 新增：列出時光機存檔
+            listBackups: async function() {
+                if(!this.user) return;
+                const container = document.getElementById('fbBackupList');
+                container.innerHTML = '<div style="text-align:center; color:#AAA; padding:10px;"><i class="fa-solid fa-spinner fa-spin"></i> 載入中...</div>';
+                
+                try {
+                    const backupsRef = collection(this.db, "users", this.user.uid, "backups");
+                    // 依日期倒序 (最新的在上面)
+                    const q = query(backupsRef, orderBy("createdAt", "desc"));
+                    const snapshot = await getDocs(q);
+                    
+                    container.innerHTML = '';
+                    if (snapshot.empty) {
+                        container.innerHTML = '<div style="text-align:center; color:#AAA; padding:10px;">尚無歷史存檔 (需操作一次存檔後才會產生)</div>';
+                        return;
+                    }
+
+                    snapshot.forEach(docSnap => {
+                        const date = docSnap.id; // 文件 ID 就是日期 (YYYY-MM-DD)
+                        const data = docSnap.data();
+                        // 轉換時間戳記
+                        let timeStr = '';
+                        if(data.createdAt) {
+                            timeStr = new Date(data.createdAt.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        }
+                        
+                        const div = document.createElement('div');
+                        div.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:#FFF; padding:10px; border-radius:6px; font-size:0.9rem; border:1px solid #EEE;";
+                        div.innerHTML = `
+                            <div style="display:flex; flex-direction:column;">
+                                <span style="font-weight:700; color:#333;">📅 ${date}</span>
+                                <span style="font-size:0.75rem; color:#999;">備份時間: ${timeStr}</span>
+                            </div>
+                            <button class="btn btn-warning" style="padding:4px 12px; font-size:0.8rem;" onclick="window.CloudSync.restoreBackup('${date}')">
+                                還原此版
+                            </button>
+                        `;
+                        container.appendChild(div);
+                    });
+                } catch(e) {
+                    console.error("List Backups Failed", e);
+                    container.innerHTML = '<div style="color:#EF5350; text-align:center;">載入失敗，請檢查網路連線</div>';
+                }
+            },
+
+            // ★ 新增：還原特定日期存檔
+            restoreBackup: async function(dateId) {
+                if(!confirm(`⚠️ 危險操作警告 ⚠️\n\n確定要將 App 資料「完全回溯」到【${dateId}】的狀態嗎？\n\n目前的資料將被覆蓋且無法復原！`)) return;
+                
+                try {
+                    const docRef = doc(this.db, "users", this.user.uid, "backups", dateId);
+                    const docSnap = await getDoc(docRef);
+                    
+                    if (docSnap.exists()) {
+                        // 注意：滾動備份的資料包在 data 欄位裡
+                        const backupData = docSnap.data().data; 
+                        this.applyData(backupData);
+                        alert(`✅ 時光倒流成功！已回到 ${dateId}`);
+                    } else {
+                        alert("找不到該檔案，可能已被自動清理");
+                        this.listBackups(); // 重新整理列表
+                    }
+                } catch(e) {
+                    console.error("Restore Failed", e);
+                    alert("還原失敗");
+                }
+            },
+
+            // 共用資料套用函式
+            applyData: function(cloudData) {
+                if(cloudData) {
+                    appData = cloudData;
+                    localStorage.setItem('painterApp_v9', JSON.stringify(appData));
+                    window.initData(false); 
+                    window.renderStats(); 
+                    // 強制重整以確保所有狀態乾淨
+                    window.location.reload();
+                }
             }
         };
 
         // Auto-init on load
         window.CloudSync.init();
+
+        // --- PHASE FINAL: LOCAL JSON BACKUP ---
+        
+        window.exportDataToJson = function() {
+            const dataStr = JSON.stringify(appData, null, 2); // 美化格式
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            
+            // 產生下載連結
+            const a = document.createElement('a');
+            a.href = url;
+            const date = new Date().toISOString().slice(0,10).replace(/-/g, '');
+            a.download = `sketching_backup_${date}.json`; // 檔名：sketching_backup_20260203.json
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+
+        window.importDataFromJson = function(input) {
+            const file = input.files[0];
+            if(!file) return;
+
+            if(!confirm("⚠️ 警告：匯入檔案將會「完全覆蓋」目前的 App 資料。\n\n建議先執行一次匯出備份再繼續。\n\n確定要覆蓋嗎？")) {
+                input.value = ''; // 清空選擇
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    
+                    // 簡單的格式檢查
+                    if(!json.tasks || !json.settings) {
+                        throw new Error("格式錯誤：這似乎不是 SketChing 的備份檔");
+                    }
+
+                    // 覆蓋資料
+                    appData = json;
+                    saveData();
+                    
+                    alert("✅ 資料還原成功！App 將重新整理。");
+                    window.location.reload(); // 重整以套用新資料
+                } catch(err) {
+                    alert("❌ 還原失敗：" + err.message);
+                }
+            };
+            reader.readAsText(file);
+        };
     </script>
 
     <script>
