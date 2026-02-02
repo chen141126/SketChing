@@ -896,16 +896,19 @@
 
     <!-- PHASE 21: STATISTICS PAGE -->
     <div id="statsPage" class="page" style="display:none; background: var(--latte-bg); z-index: 2500;">
+        
         <div class="page-header" style="background:var(--latte-bg); border-bottom-color: rgba(0,0,0,0.05);">
-            <div style="width:32px;"></div> <!-- Spacer -->
+            <button class="icon-btn" onclick="window.toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+            
             <span class="page-title" style="color:var(--latte-dark)">統計分析</span>
-            <div style="width:32px;"></div> <!-- Spacer -->
+            
+            <div style="width:32px;"></div> 
         </div>
         
         <div class="page-body">
-            <!-- Top Control Bar -->
             <div class="stats-control-bar">
-                <button class="icon-btn" onclick="window.toggleSidebar()"><i class="fa-solid fa-bars"></i></button>
+                
+                <div style="width:36px;"></div>
                 
                 <div style="display:flex; align-items:center; gap:10px;">
                     <button class="icon-btn-small" onclick="window.changeStatsDate(-1)"><i class="fa-solid fa-chevron-left"></i></button>
