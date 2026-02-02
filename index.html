@@ -758,8 +758,8 @@
             position: absolute; 
             
             /* ★ 位置調整：往左、往下一點 */
-            top: 6px;      /* 原本 4px -> 改為 12px (往下) */
-            right: 8px;    /* 原本 8px -> 改為 12px (往左) */
+            top: 7px;      /* 原本 4px -> 改為 12px (往下) */
+            right: 7px;    /* 原本 8px -> 改為 12px (往左) */
 
             background: #C62828; color: white;
             padding: 4px 10px; border-radius: 12px;
@@ -4628,26 +4628,27 @@ function calculateSchedule() {
 
         // --- PHASE 36 UPDATED: INDEPENDENT STOPWATCH LOGIC ---
 
+        // --- PHASE 37: OPTIMIZED STOPWATCH & NOTIFICATION ---
+
         window.timerState = {
             taskId: null,
             startTime: null
         };
         
-        // 初始化：恢復狀態，但不發送新通知
+        // 用來暫存當前的通知物件，以便稍後關閉
+        window.activeNotification = null;
+        
         window.initTimerSystem = function() {
             const savedState = localStorage.getItem('sketching_timer_state');
             if (savedState) {
                 const parsed = JSON.parse(savedState);
                 if (parsed.taskId && parsed.startTime) {
                     window.timerState = parsed;
-                    window.startTimerLoop(); // 恢復計時顯示
-                    
-                    // 恢復全域膠囊顯示
-                    document.getElementById('globalTimerPill').classList.add('active');
+                    window.startTimerLoop(); // 只恢復介面顯示，不發通知
                 }
             }
-            // 這裡只請求權限，不發通知
-            if ("Notification" in window && Notification.permission !== "granted") {
+            // 只有在還沒決定權限時才詢問，避免每次打開都跳詢問視窗
+            if ("Notification" in window && Notification.permission === "default") {
                 Notification.requestPermission();
             }
         };
@@ -4678,36 +4679,16 @@ function calculateSchedule() {
             };
             localStorage.setItem('sketching_timer_state', JSON.stringify(window.timerState));
             
-            // 顯示全域膠囊
-            document.getElementById('globalTimerPill').classList.add('active');
-            
             window.updateBottomSheetTimerBtn();
             window.renderCurrentTask(); 
             window.startTimerLoop();
             
-            // 發送通知 (明確的文字)
-            if ("Notification" in window && Notification.permission === "granted") {
-                const t = appData.tasks.find(x => x.id === taskId);
-                const title = t ? t.title : "任務";
-                const msgBody = `⏳ 正在計時: ${title}`;
-                
-                try {
-                    navigator.serviceWorker.ready.then(function(reg) {
-                        reg.showNotification('SketChing 計時器', {
-                            body: msgBody,
-                            tag: 'timer-active', // 設定 Tag 以便稍後關閉
-                            icon: 'icon_v3.png',
-                            renotify: true,
-                            requireInteraction: true // 嘗試讓通知常駐 (視瀏覽器而定)
-                        });
-                    }).catch(() => {
-                         new Notification('SketChing 計時器', { 
-                             body: msgBody, 
-                             tag: 'timer-active' 
-                         });
-                    });
-                } catch(e) {}
-            }
+            // ★ 發送通知：標題客製化
+            const t = appData.tasks.find(x => x.id === taskId);
+            const title = t ? t.title : "任務";
+            const startStr = new Date(now).toTimeString().split(' ')[0].substring(0, 5); // 14:30
+            
+            window.sendTimerNotification(`${title} 正在計時`, `開始時間: ${startStr}`);
         };
 
         window.stopTimer = function() {
@@ -4717,7 +4698,7 @@ function calculateSchedule() {
             const start = window.timerState.startTime;
             const diffMs = now - start;
             
-            // 顯示結算畫面
+            // 顯示結算
             const hh = Math.floor(diffMs / (1000 * 60 * 60)).toString().padStart(2, '0');
             const mm = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
             const ss = Math.floor((diffMs % (1000 * 60)) / 1000).toString().padStart(2, '0');
@@ -4727,32 +4708,115 @@ function calculateSchedule() {
             
             confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
 
-            // 隱藏全域膠囊
-            document.getElementById('globalTimerPill').classList.remove('active');
-
             // 清除狀態
             window.timerState = { taskId: null, startTime: null };
             localStorage.removeItem('sketching_timer_state');
             
-            // ★ 關鍵：強制關閉通知
-            if ("Notification" in window) {
-                try {
-                    // 方法 1: 透過 ServiceWorker 關閉
-                    navigator.serviceWorker.ready.then(reg => {
-                        reg.getNotifications({tag: 'timer-active'}).then(ns => {
-                            ns.forEach(n => n.close());
-                        });
-                    });
-                } catch(e){}
-                
-                // 方法 2: 嘗試關閉一般通知 (如果不走SW)
-                // 注意：new Notification 產生的物件如果沒被變數存下來，很難事後關閉
-                // 但我們會依賴 SW 的 tag 機制為主
-            }
+            // ★ 停止時：強制關閉通知
+            window.clearTimerNotification();
 
             // 更新 UI
             window.updateBottomSheetTimerBtn();
             window.renderCurrentTask();
+        };
+        // --- 通知控制核心 ---
+        
+        window.sendTimerNotification = function(title, body) {
+            // 先清除舊的，避免堆疊
+            window.clearTimerNotification();
+
+            if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+            // 嘗試使用 ServiceWorker (手機端支援度較好)
+            if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.ready.then(function(reg) {
+                    reg.showNotification(title, {
+                        body: body,
+                        tag: 'sketching-timer', // 使用固定 tag 確保只有一則
+                        icon: 'icon_v3.png',
+                        renotify: true,
+                        requireInteraction: true, // 嘗試常駐
+                        silent: false
+                    });
+                });
+            } else {
+                // 降級使用一般 Notification API (電腦端/無SW環境)
+                try {
+                    window.activeNotification = new Notification(title, {
+                        body: body,
+                        tag: 'sketching-timer',
+                        icon: 'icon_v3.png',
+                        requireInteraction: true
+                    });
+                } catch (e) {
+                    console.log("Notification failed", e);
+                }
+            }
+        };
+
+        window.clearTimerNotification = function() {
+            // 1. 如果有存下實體，直接關閉
+            if (window.activeNotification) {
+                window.activeNotification.close();
+                window.activeNotification = null;
+            }
+
+            // 2. 嘗試透過 ServiceWorker 清除 (針對手機端)
+            if ("serviceWorker" in navigator) {
+                navigator.serviceWorker.ready.then(function(reg) {
+                    reg.getNotifications({tag: 'sketching-timer'}).then(function(notifications) {
+                        notifications.forEach(function(notification) {
+                            notification.close();
+                        });
+                    });
+                });
+            }
+        };
+        
+        window.closeTimerOverlay = function() {
+            document.getElementById('timerOverlay').classList.remove('active');
+        };
+
+        let timerInterval = null;
+        window.startTimerLoop = function() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (!window.timerState.taskId) {
+                    clearInterval(timerInterval); return;
+                }
+                
+                const diff = Date.now() - window.timerState.startTime;
+                
+                const hh = Math.floor(diff / 3600000).toString().padStart(2, '0');
+                const mm = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+                const ss = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+                const timeStr = hh === '00' ? `${mm}:${ss}` : `${hh}:${mm}:${ss}`;
+
+                // 更新 Bottom Sheet 按鈕
+                const btn = document.getElementById('sheetTimerBtn');
+                if (btn && window.selectedTaskId === window.timerState.taskId) {
+                    btn.querySelector('span').textContent = `停止 (${timeStr})`;
+                }
+
+                // 更新 Container 上方的紅點
+                const badge = document.getElementById('activeTimerBadge');
+                if (badge) {
+                     const timeSpan = badge.querySelector('.timer-val');
+                     if(timeSpan) timeSpan.textContent = `${hh}:${mm}:${ss}`;
+                }
+            }, 1000);
+        };
+
+        window.updateBottomSheetTimerBtn = function() {
+            const btn = document.getElementById('sheetTimerBtn');
+            if (!btn) return;
+            if (window.selectedTaskId === window.timerState.taskId) {
+                btn.classList.add('active');
+                btn.innerHTML = `<i class="fa-solid fa-stop"></i> <span>停止計時</span>`;
+            } else {
+                btn.classList.remove('active');
+                btn.innerHTML = `<i class="fa-solid fa-play"></i> <span>開始計時</span>`;
+            }
         };
 
         // 點擊全域膠囊 -> 打開對應任務的 BottomSheet
