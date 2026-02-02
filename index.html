@@ -751,11 +751,17 @@
         
         .legend-grid.small-text .legend-item { font-size: 0.7rem; }
 
-        /* --- Phase 36: Stopwatch Timer Styles --- */
+        /* --- Phase 36 Updated: Timer Styles --- */
         
-        /* 1. 任務卡片上的「進行中」紅點 */
+        /* 1. 任務卡片上的「進行中」紅點 (Card Badge) */
         .timer-badge {
-            position: absolute; top: -6px; right: -6px;
+            position: absolute; 
+            
+            /* ▼▼▼【在這裡調整卡片紅點的位置】▼▼▼ */
+            top: 4px;      /* 數值越大越往下 */
+            right: 8px;    /* 數值越大越往左 */
+            /* ▲▲▲ ----------------------- ▲▲▲ */
+
             background: #C62828; color: white;
             padding: 4px 8px; border-radius: 12px;
             font-size: 0.75rem; font-weight: 700;
@@ -763,49 +769,68 @@
             z-index: 20;
             display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
             animation: pulse-red 2s infinite;
+            pointer-events: none; /* 讓點擊穿透，這樣點紅點也能打開卡片 */
         }
-        .timer-badge small { font-size: 0.65rem; opacity: 0.9; font-weight: 500; }
         
+        /* 2. 新增：全域計時懸浮膠囊 (Global Pill) */
+        /* 這是在沒看到卡片時，依然顯示在畫面上的計時器 */
+        #globalTimerPill {
+            position: fixed;
+            top: 6px;         /* 距離頂部 */
+            right: 6px;       /* 距離右邊 (避開選單按鈕) */
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid #C62828;
+            color: #C62828;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem; font-weight: 800;
+            display: none;     /* 預設隱藏 */
+            align-items: center; gap: 6px;
+            box-shadow: 0 4px 12px rgba(198, 40, 40, 0.2);
+            z-index: 4500;     /* 確保在最上層，但在 Modal 之下 */
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #globalTimerPill:active { transform: scale(0.95); }
+        #globalTimerPill.active { display: flex; animation: pulse-border 2s infinite; }
+
         @keyframes pulse-red {
             0% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0.4); }
             70% { box-shadow: 0 0 0 10px rgba(198, 40, 40, 0); }
             100% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0); }
         }
-
-        /* 2. Bottom Sheet 標題列的計時按鈕 */
-        .sheet-header-row {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 8px;
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0.4); }
+            50% { box-shadow: 0 0 0 6px rgba(198, 40, 40, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0); }
         }
+
+        /* 3. Bottom Sheet 按鈕優化 (移除停止時的醜醜背景) */
+        .sheet-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
         .btn-timer-toggle {
             background: none; border: none; cursor: pointer;
             color: var(--light-text); font-size: 1.1rem;
             padding: 8px; border-radius: 50%; transition: all 0.2s;
             display: flex; align-items: center; gap: 6px;
         }
-        .btn-timer-toggle.active { color: #C62828; background: #FFEBEE; }
+        /* ★ 修改：激活狀態只改文字顏色，不加背景色 */
+        .btn-timer-toggle.active {
+            color: #D32F2F; /* 深紅色文字 */
+            background: transparent; /* 透明背景 */
+            font-weight: 700;
+        }
         
-        /* 3. 計時結算全螢幕畫面 */
+        /* 4. 結算畫面 (維持原樣) */
         #timerOverlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(255, 255, 255, 0.98); z-index: 4000;
+            background: rgba(255, 255, 255, 0.98); z-index: 5000;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             opacity: 0; pointer-events: none; transition: opacity 0.3s;
         }
         #timerOverlay.active { opacity: 1; pointer-events: auto; }
-        
-        .timer-result-time {
-            font-size: 4rem; font-weight: 800; color: var(--primary-color);
-            margin: 10px 0; font-family: monospace; letter-spacing: 2px;
-        }
+        .timer-result-time { font-size: 4rem; font-weight: 800; color: var(--primary-color); margin: 10px 0; font-family: monospace; letter-spacing: 2px; }
         .timer-result-label { font-size: 1.2rem; color: var(--light-text); font-weight: 700; }
-        
-        /* 新增：提示手動輸入的文字 */
-        .timer-manual-hint {
-            background: #E3F2FD; color: #1565C0; padding: 8px 16px;
-            border-radius: 20px; font-weight: 700; margin-top: 10px;
-            font-size: 0.9rem;
-        }
+        .timer-manual-hint { background: #E3F2FD; color: #1565C0; padding: 8px 16px; border-radius: 20px; font-weight: 700; margin-top: 10px; font-size: 0.9rem; }
 
     </style>
 <script type="importmap">
@@ -4600,22 +4625,27 @@ function calculateSchedule() {
             window.initTimerSystem(); // ★ 啟動計時器系統
         });
 
-        // --- PHASE 36: INDEPENDENT STOPWATCH LOGIC ---
+        // --- PHASE 36 UPDATED: INDEPENDENT STOPWATCH LOGIC ---
 
         window.timerState = {
             taskId: null,
             startTime: null
         };
         
+        // 初始化：恢復狀態，但不發送新通知
         window.initTimerSystem = function() {
             const savedState = localStorage.getItem('sketching_timer_state');
             if (savedState) {
                 const parsed = JSON.parse(savedState);
                 if (parsed.taskId && parsed.startTime) {
                     window.timerState = parsed;
-                    window.startTimerLoop();
+                    window.startTimerLoop(); // 恢復計時顯示
+                    
+                    // 恢復全域膠囊顯示
+                    document.getElementById('globalTimerPill').classList.add('active');
                 }
             }
+            // 這裡只請求權限，不發通知
             if ("Notification" in window && Notification.permission !== "granted") {
                 Notification.requestPermission();
             }
@@ -4647,28 +4677,147 @@ function calculateSchedule() {
             };
             localStorage.setItem('sketching_timer_state', JSON.stringify(window.timerState));
             
+            // 顯示全域膠囊
+            document.getElementById('globalTimerPill').classList.add('active');
+            
             window.updateBottomSheetTimerBtn();
             window.renderCurrentTask(); 
             window.startTimerLoop();
             
-            // Notification logic
+            // 發送通知 (明確的文字)
             if ("Notification" in window && Notification.permission === "granted") {
                 const t = appData.tasks.find(x => x.id === taskId);
                 const title = t ? t.title : "任務";
+                const msgBody = `⏳ 正在計時: ${title}`;
+                
                 try {
                     navigator.serviceWorker.ready.then(function(reg) {
-                        reg.showNotification('SketChing', {
-                            body: `🔴 正在計時: ${title}`,
-                            tag: 'timer-active',
+                        reg.showNotification('SketChing 計時器', {
+                            body: msgBody,
+                            tag: 'timer-active', // 設定 Tag 以便稍後關閉
                             icon: 'icon_v3.png',
-                            renotify: true
+                            renotify: true,
+                            requireInteraction: true // 嘗試讓通知常駐 (視瀏覽器而定)
                         });
                     }).catch(() => {
-                         new Notification('SketChing', { body: `🔴 開始計時: ${title}`, tag: 'timer-active' });
+                         new Notification('SketChing 計時器', { 
+                             body: msgBody, 
+                             tag: 'timer-active' 
+                         });
                     });
                 } catch(e) {}
             }
         };
+
+        window.stopTimer = function() {
+            if (!window.timerState.taskId) return;
+
+            const now = Date.now();
+            const start = window.timerState.startTime;
+            const diffMs = now - start;
+            
+            // 顯示結算畫面
+            const hh = Math.floor(diffMs / (1000 * 60 * 60)).toString().padStart(2, '0');
+            const mm = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+            const ss = Math.floor((diffMs % (1000 * 60)) / 1000).toString().padStart(2, '0');
+            
+            document.getElementById('timerResultDisplay').textContent = `${hh}:${mm}:${ss}`;
+            document.getElementById('timerOverlay').classList.add('active');
+            
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+
+            // 隱藏全域膠囊
+            document.getElementById('globalTimerPill').classList.remove('active');
+
+            // 清除狀態
+            window.timerState = { taskId: null, startTime: null };
+            localStorage.removeItem('sketching_timer_state');
+            
+            // ★ 關鍵：強制關閉通知
+            if ("Notification" in window) {
+                try {
+                    // 方法 1: 透過 ServiceWorker 關閉
+                    navigator.serviceWorker.ready.then(reg => {
+                        reg.getNotifications({tag: 'timer-active'}).then(ns => {
+                            ns.forEach(n => n.close());
+                        });
+                    });
+                } catch(e){}
+                
+                // 方法 2: 嘗試關閉一般通知 (如果不走SW)
+                // 注意：new Notification 產生的物件如果沒被變數存下來，很難事後關閉
+                // 但我們會依賴 SW 的 tag 機制為主
+            }
+
+            // 更新 UI
+            window.updateBottomSheetTimerBtn();
+            window.renderCurrentTask();
+        };
+
+        // 點擊全域膠囊 -> 打開對應任務的 BottomSheet
+        window.clickGlobalTimer = function() {
+            const taskId = window.timerState.taskId;
+            if(taskId) {
+                // 如果目前已經開著別的，先關掉
+                window.closeBottomSheet();
+                // 打開目標任務
+                window.openBottomSheetFromId(taskId);
+            }
+        };
+        
+        window.closeTimerOverlay = function() {
+            document.getElementById('timerOverlay').classList.remove('active');
+        };
+
+        let timerInterval = null;
+        window.startTimerLoop = function() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (!window.timerState.taskId) {
+                    clearInterval(timerInterval); return;
+                }
+                
+                const diff = Date.now() - window.timerState.startTime;
+                
+                // 1. 計算時間字串
+                const hh = Math.floor(diff / 3600000).toString().padStart(2, '0');
+                const mm = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+                const ss = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+                const timeStr = hh === '00' ? `${mm}:${ss}` : `${hh}:${mm}:${ss}`;
+
+                // 2. 更新 Bottom Sheet 按鈕
+                const btn = document.getElementById('sheetTimerBtn');
+                if (btn && window.selectedTaskId === window.timerState.taskId) {
+                    btn.querySelector('span').textContent = `停止 (${timeStr})`;
+                }
+
+                // 3. 更新 Task Card 紅點
+                const badge = document.getElementById('activeTimerBadge');
+                if (badge) {
+                     const timeSpan = badge.querySelector('.timer-val');
+                     if(timeSpan) timeSpan.textContent = `${hh}:${mm}:${ss}`;
+                }
+
+                // 4. 更新全域膠囊 (Global Pill)
+                const pillTime = document.getElementById('globalTimerTime');
+                if(pillTime) pillTime.textContent = timeStr;
+
+            }, 1000);
+        };
+
+        window.updateBottomSheetTimerBtn = function() {
+            const btn = document.getElementById('sheetTimerBtn');
+            if (!btn) return;
+            if (window.selectedTaskId === window.timerState.taskId) {
+                btn.classList.add('active');
+                // 這裡文字會被 Loop 覆蓋，先給個初始值
+                btn.innerHTML = `<i class="fa-solid fa-stop"></i> <span>停止計時</span>`;
+            } else {
+                btn.classList.remove('active');
+                btn.innerHTML = `<i class="fa-solid fa-play"></i> <span>開始計時</span>`;
+            }
+        };
+
 
         // ★ 修改重點：停止時只顯示時間，不寫入資料庫
         window.stopTimer = function() {
@@ -4751,16 +4900,19 @@ function calculateSchedule() {
             }
         };
     </script>
+    
+    <div id="globalTimerPill" onclick="window.clickGlobalTimer()">
+        <i class="fa-solid fa-stopwatch"></i>
+        <span id="globalTimerTime">00:00</span>
+    </div>
+
     <div id="timerOverlay" onclick="window.closeTimerOverlay()">
         <div class="celebration-title">計時結束</div>
         <div class="timer-result-label">本次專注時間</div>
-        
         <div class="timer-result-time" id="timerResultDisplay">00:00:00</div>
-        
         <div class="timer-manual-hint">
             <i class="fa-solid fa-pen"></i> 請記得手動登錄工時喔！
         </div>
-
         <div style="margin-top:40px; color:#888; font-size:0.9rem; animation: bounce 1s infinite;">
             (點擊任意處關閉)
         </div>
