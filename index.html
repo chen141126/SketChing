@@ -3574,23 +3574,47 @@ function calculateSchedule() {
 
         function renderCurrentTask() {
             const container = document.getElementById('taskCarousel');
+            
+            // 1. ★ 優先生成計時紅點 (獨立於任務列表)
+            // 不管有沒有任務、當前是哪個任務，只要計時器在跑，這個 HTML 就會生成
+            let timerBadgeHtml = '';
+            if (window.timerState && window.timerState.taskId) {
+                const start = new Date(window.timerState.startTime);
+                const startStr = `${start.getHours().toString().padStart(2,'0')}:${start.getMinutes().toString().padStart(2,'0')}`;
+                
+                // 點擊紅點 -> 直接打開正在計時的任務 ID
+                timerBadgeHtml = `
+                    <div class="timer-badge" id="activeTimerBadge" onclick="event.stopPropagation(); window.openBottomSheetFromId('${window.timerState.taskId}')">
+                        <div>🔴 進行中: <span class="timer-val">00:00:00</span></div>
+                        <small>開始時間：${startStr}</small>
+                    </div>
+                `;
+            }
+
+            // 2. 篩選任務列表
             const tasks = appData.tasks.filter(t => {
                 if(t.status !== 'active') return false;
                 const inRange = t.computedStartDate && t.computedStartDate <= TODAY_STR && (t.computedEndDate||t.computedStartDate) >= TODAY_STR;
                 return inRange || t.loggedHours > 0;
             }).sort((a,b) => new Date(a.computedStartDate) - new Date(b.computedStartDate));
 
+            // 3. 處理「無任務」的情況 (現在也會顯示紅點了！)
             if(tasks.length === 0) {
-                container.innerHTML = `<div class="task-card" style="justify-content:center; color: var(--light-text);">無進行中任務</div>`;
+                container.innerHTML = `
+                    ${timerBadgeHtml}
+                    <div class="task-card" style="justify-content:center; color: var(--light-text);">無進行中任務</div>
+                `;
                 return;
             }
 
+            // 4. 處理索引
             if(currentTaskIndex >= tasks.length) currentTaskIndex = 0;
             if(currentTaskIndex < 0) currentTaskIndex = tasks.length - 1;
 
             const task = tasks[currentTaskIndex];
             if (!task) { currentTaskIndex = 0; renderCurrentTask(); return; }
 
+            // 5. 生成卡片內容
             const taskTagIds = task.tagIds || [];
             const tagsHtml = taskTagIds.map(id => {
                 const tag = appData.settings.tags.find(g => g.id == id);
@@ -3603,34 +3627,25 @@ function calculateSchedule() {
 
             const remaining = Math.max(0, task.estimatedHours - (task.loggedHours || 0));
 
-            // ★ Phase 36: Timer Badge Logic
-            let timerBadgeHtml = '';
-            if (window.timerState && window.timerState.taskId === task.id) {
-                const start = new Date(window.timerState.startTime);
-                const startStr = `${start.getHours().toString().padStart(2,'0')}:${start.getMinutes().toString().padStart(2,'0')}`;
-                
-                timerBadgeHtml = `
-                    <div class="timer-badge" id="activeTimerBadge">
-                        <div>🔴 進行中: <span class="timer-val">00:00:00</span></div>
-                        <small>開始時間：${startStr}</small>
-                    </div>
-                `;
-            }
-
+            // 6. 組合 HTML：把紅點放在卡片前面 (同層級)
             let html = `
+                ${timerBadgeHtml}
                 <div class="task-card" onclick="openBottomSheetFromId('${task.id}')">
-                    ${timerBadgeHtml} <div class="task-info">
+                    <div class="task-info">
                         <div class="card-tags">${tagsHtml || '<small style="color:#AAA">無標籤</small>'}</div>
                         <h2>${task.title}</h2>
                         <div style="font-size:0.85rem; color:var(--light-text);">剩餘 ${remaining} 小時</div>
                     </div>
             `;
+            
             if(tasks.length > 1) {
                 html += `<i class="fa-solid fa-chevron-right carousel-arrow" onclick="event.stopPropagation(); window.changeCurrentTask(1)"></i>`;
             }
             html += `</div>`;
+            
             container.innerHTML = html;
         }
+        
         window.changeCurrentTask = function(delta) {
             currentTaskIndex += delta;
             renderCurrentTask();
