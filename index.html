@@ -751,6 +751,62 @@
         
         .legend-grid.small-text .legend-item { font-size: 0.7rem; }
 
+        /* --- Phase 36: Stopwatch Timer Styles --- */
+        
+        /* 1. 任務卡片上的「進行中」紅點 */
+        .timer-badge {
+            position: absolute; top: -6px; right: -6px;
+            background: #C62828; color: white;
+            padding: 4px 8px; border-radius: 12px;
+            font-size: 0.75rem; font-weight: 700;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 20;
+            display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+            animation: pulse-red 2s infinite;
+        }
+        .timer-badge small { font-size: 0.65rem; opacity: 0.9; font-weight: 500; }
+        
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(198, 40, 40, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0); }
+        }
+
+        /* 2. Bottom Sheet 標題列的計時按鈕 */
+        .sheet-header-row {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 8px;
+        }
+        .btn-timer-toggle {
+            background: none; border: none; cursor: pointer;
+            color: var(--light-text); font-size: 1.1rem;
+            padding: 8px; border-radius: 50%; transition: all 0.2s;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .btn-timer-toggle.active { color: #C62828; background: #FFEBEE; }
+        
+        /* 3. 計時結算全螢幕畫面 */
+        #timerOverlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255, 255, 255, 0.98); z-index: 4000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        #timerOverlay.active { opacity: 1; pointer-events: auto; }
+        
+        .timer-result-time {
+            font-size: 4rem; font-weight: 800; color: var(--primary-color);
+            margin: 10px 0; font-family: monospace; letter-spacing: 2px;
+        }
+        .timer-result-label { font-size: 1.2rem; color: var(--light-text); font-weight: 700; }
+        
+        /* 新增：提示手動輸入的文字 */
+        .timer-manual-hint {
+            background: #E3F2FD; color: #1565C0; padding: 8px 16px;
+            border-radius: 20px; font-weight: 700; margin-top: 10px;
+            font-size: 0.9rem;
+        }
+
     </style>
 <script type="importmap">
 {
@@ -1434,7 +1490,12 @@
             <div class="sheet-handle"></div>
         </div>
         <div class="sheet-content">
-            <h3 style="margin:0; color: var(--light-text); font-size: 0.9rem;">工時紀錄</h3>
+            <div class="sheet-header-row">
+                <h3 style="margin:0; color: var(--light-text); font-size: 0.9rem;">工時紀錄</h3>
+                <button id="sheetTimerBtn" class="btn-timer-toggle" onclick="window.toggleTimer()">
+                    <i class="fa-solid fa-play"></i> <span>開始計時</span>
+                </button>
+            </div>
             <h2 id="sheetTaskTitle" style="margin: 8px 0; font-size: 1.2rem; text-align:center;">Task</h2>
             <div class="time-adjuster">
                 <button class="adjust-btn" onclick="window.adjustLog(-0.5)"><i class="fa-solid fa-minus"></i></button>
@@ -3523,7 +3584,6 @@ function calculateSchedule() {
             const tagsHtml = taskTagIds.map(id => {
                 const tag = appData.settings.tags.find(g => g.id == id);
                 if(tag) {
-                    // Phase 26: Smart Text Color
                     const textColor = window.getTextColorForBg(tag.color);
                     return `<div class="tag-pill-small" style="background:${tag.color}; color:${textColor}">${tag.name}</div>`;
                 }
@@ -3532,9 +3592,23 @@ function calculateSchedule() {
 
             const remaining = Math.max(0, task.estimatedHours - (task.loggedHours || 0));
 
+            // ★ Phase 36: Timer Badge Logic
+            let timerBadgeHtml = '';
+            if (window.timerState && window.timerState.taskId === task.id) {
+                const start = new Date(window.timerState.startTime);
+                const startStr = `${start.getHours().toString().padStart(2,'0')}:${start.getMinutes().toString().padStart(2,'0')}`;
+                
+                timerBadgeHtml = `
+                    <div class="timer-badge" id="activeTimerBadge">
+                        <div>🔴 進行中: <span class="timer-val">00:00:00</span></div>
+                        <small>開始時間：${startStr}</small>
+                    </div>
+                `;
+            }
+
             let html = `
                 <div class="task-card" onclick="openBottomSheetFromId('${task.id}')">
-                    <div class="task-info">
+                    ${timerBadgeHtml} <div class="task-info">
                         <div class="card-tags">${tagsHtml || '<small style="color:#AAA">無標籤</small>'}</div>
                         <h2>${task.title}</h2>
                         <div style="font-size:0.85rem; color:var(--light-text);">剩餘 ${remaining} 小時</div>
@@ -3619,6 +3693,10 @@ function calculateSchedule() {
 
             sheet.classList.add('active');
             document.getElementById('sheetOverlay').classList.add('active');
+            
+            // ★ Phase 36: Update Timer Button State
+            window.updateBottomSheetTimerBtn();
+
         };
         window.openBottomSheetFromId = function(id) {
             const t = appData.tasks.find(x => x.id === id);
@@ -4519,7 +4597,173 @@ function calculateSchedule() {
         window.addEventListener('DOMContentLoaded', () => {
             initData();
             enableCalendarSwipe(); // ★ 加入這一行來啟動手勢
+            window.initTimerSystem(); // ★ 啟動計時器系統
         });
+
+        // --- PHASE 36: INDEPENDENT STOPWATCH LOGIC ---
+
+        window.timerState = {
+            taskId: null,
+            startTime: null
+        };
+        
+        window.initTimerSystem = function() {
+            const savedState = localStorage.getItem('sketching_timer_state');
+            if (savedState) {
+                const parsed = JSON.parse(savedState);
+                if (parsed.taskId && parsed.startTime) {
+                    window.timerState = parsed;
+                    window.startTimerLoop();
+                }
+            }
+            if ("Notification" in window && Notification.permission !== "granted") {
+                Notification.requestPermission();
+            }
+        };
+
+        window.toggleTimer = function() {
+            const targetTaskId = window.selectedTaskId;
+            if (!targetTaskId) return;
+
+            if (!window.timerState.taskId) {
+                window.startTimer(targetTaskId);
+            } else {
+                if (window.timerState.taskId === targetTaskId) {
+                    window.stopTimer();
+                } else {
+                    if(confirm("另一個任務正在計時中，要結束它並開始這個任務嗎？")) {
+                        window.stopTimer(); 
+                        setTimeout(() => window.startTimer(targetTaskId), 500);
+                    }
+                }
+            }
+        };
+
+        window.startTimer = function(taskId) {
+            const now = Date.now();
+            window.timerState = {
+                taskId: taskId,
+                startTime: now
+            };
+            localStorage.setItem('sketching_timer_state', JSON.stringify(window.timerState));
+            
+            window.updateBottomSheetTimerBtn();
+            window.renderCurrentTask(); 
+            window.startTimerLoop();
+            
+            // Notification logic
+            if ("Notification" in window && Notification.permission === "granted") {
+                const t = appData.tasks.find(x => x.id === taskId);
+                const title = t ? t.title : "任務";
+                try {
+                    navigator.serviceWorker.ready.then(function(reg) {
+                        reg.showNotification('SketChing', {
+                            body: `🔴 正在計時: ${title}`,
+                            tag: 'timer-active',
+                            icon: 'icon_v3.png',
+                            renotify: true
+                        });
+                    }).catch(() => {
+                         new Notification('SketChing', { body: `🔴 開始計時: ${title}`, tag: 'timer-active' });
+                    });
+                } catch(e) {}
+            }
+        };
+
+        // ★ 修改重點：停止時只顯示時間，不寫入資料庫
+        window.stopTimer = function() {
+            if (!window.timerState.taskId) return;
+
+            const now = Date.now();
+            const start = window.timerState.startTime;
+            const diffMs = now - start;
+            
+            // 顯示結算畫面
+            const hh = Math.floor(diffMs / (1000 * 60 * 60)).toString().padStart(2, '0');
+            const mm = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
+            const ss = Math.floor((diffMs % (1000 * 60)) / 1000).toString().padStart(2, '0');
+            
+            document.getElementById('timerResultDisplay').textContent = `${hh}:${mm}:${ss}`;
+            document.getElementById('timerOverlay').classList.add('active');
+            
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+
+            // 清除狀態
+            window.timerState = { taskId: null, startTime: null };
+            localStorage.removeItem('sketching_timer_state');
+            
+            // 清除通知
+            if ("Notification" in window) {
+                try {
+                    navigator.serviceWorker.getRegistration().then(reg => {
+                        if(reg) reg.getNotifications({tag: 'timer-active'}).then(ns => ns.forEach(n => n.close()));
+                    });
+                } catch(e){}
+            }
+
+            // 更新 UI (紅點消失、按鈕變回開始)
+            window.updateBottomSheetTimerBtn();
+            window.renderCurrentTask();
+        };
+        
+        window.closeTimerOverlay = function() {
+            document.getElementById('timerOverlay').classList.remove('active');
+        };
+
+        // UI 循環 (不變)
+        let timerInterval = null;
+        window.startTimerLoop = function() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (!window.timerState.taskId) {
+                    clearInterval(timerInterval); return;
+                }
+                // Update Button
+                const btn = document.getElementById('sheetTimerBtn');
+                if (btn && window.selectedTaskId === window.timerState.taskId) {
+                    const diff = Date.now() - window.timerState.startTime;
+                    const mm = Math.floor(diff / 60000).toString().padStart(2, '0');
+                    const ss = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+                    btn.querySelector('span').textContent = `停止 (${mm}:${ss})`;
+                }
+                // Update Badge
+                const badge = document.getElementById('activeTimerBadge');
+                if (badge) {
+                     const diff = Date.now() - window.timerState.startTime;
+                     const hh = Math.floor(diff / 3600000).toString().padStart(2, '0');
+                     const mm = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
+                     const ss = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+                     const timeSpan = badge.querySelector('.timer-val');
+                     if(timeSpan) timeSpan.textContent = `${hh}:${mm}:${ss}`;
+                }
+            }, 1000);
+        };
+
+        window.updateBottomSheetTimerBtn = function() {
+            const btn = document.getElementById('sheetTimerBtn');
+            if (!btn) return;
+            if (window.selectedTaskId === window.timerState.taskId) {
+                btn.classList.add('active');
+                btn.innerHTML = `<i class="fa-solid fa-stop"></i> <span>停止 (計算中...)</span>`;
+            } else {
+                btn.classList.remove('active');
+                btn.innerHTML = `<i class="fa-solid fa-play"></i> <span>開始計時</span>`;
+            }
+        };
     </script>
+    <div id="timerOverlay" onclick="window.closeTimerOverlay()">
+        <div class="celebration-title">計時結束</div>
+        <div class="timer-result-label">本次專注時間</div>
+        
+        <div class="timer-result-time" id="timerResultDisplay">00:00:00</div>
+        
+        <div class="timer-manual-hint">
+            <i class="fa-solid fa-pen"></i> 請記得手動登錄工時喔！
+        </div>
+
+        <div style="margin-top:40px; color:#888; font-size:0.9rem; animation: bounce 1s infinite;">
+            (點擊任意處關閉)
+        </div>
+    </div>
 </body>
 </html>
