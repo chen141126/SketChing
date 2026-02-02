@@ -4626,7 +4626,7 @@ function calculateSchedule() {
             window.initTimerSystem(); // ★ 啟動計時器系統
         });
 
-        // --- PHASE 36 UPDATED: INDEPENDENT STOPWATCH LOGIC ---
+        
 
         // --- PHASE 37: OPTIMIZED STOPWATCH & NOTIFICATION ---
 
@@ -4819,69 +4819,6 @@ function calculateSchedule() {
             }
         };
 
-        // 點擊全域膠囊 -> 打開對應任務的 BottomSheet
-        window.clickGlobalTimer = function() {
-            const taskId = window.timerState.taskId;
-            if(taskId) {
-                // 如果目前已經開著別的，先關掉
-                window.closeBottomSheet();
-                // 打開目標任務
-                window.openBottomSheetFromId(taskId);
-            }
-        };
-        
-        window.closeTimerOverlay = function() {
-            document.getElementById('timerOverlay').classList.remove('active');
-        };
-
-        let timerInterval = null;
-        window.startTimerLoop = function() {
-            if (timerInterval) clearInterval(timerInterval);
-            timerInterval = setInterval(() => {
-                if (!window.timerState.taskId) {
-                    clearInterval(timerInterval); return;
-                }
-                
-                const diff = Date.now() - window.timerState.startTime;
-                
-                // 1. 計算時間字串
-                const hh = Math.floor(diff / 3600000).toString().padStart(2, '0');
-                const mm = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
-                const ss = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
-                const timeStr = hh === '00' ? `${mm}:${ss}` : `${hh}:${mm}:${ss}`;
-
-                // 2. 更新 Bottom Sheet 按鈕
-                const btn = document.getElementById('sheetTimerBtn');
-                if (btn && window.selectedTaskId === window.timerState.taskId) {
-                    btn.querySelector('span').textContent = `停止 (${timeStr})`;
-                }
-
-                // 3. 更新 Task Card 紅點
-                const badge = document.getElementById('activeTimerBadge');
-                if (badge) {
-                     const timeSpan = badge.querySelector('.timer-val');
-                     if(timeSpan) timeSpan.textContent = `${hh}:${mm}:${ss}`;
-                }
-
-                // 4. 更新全域膠囊 (Global Pill)
-                const pillTime = document.getElementById('globalTimerTime');
-                if(pillTime) pillTime.textContent = timeStr;
-
-            }, 1000);
-        };
-
-        window.updateBottomSheetTimerBtn = function() {
-            const btn = document.getElementById('sheetTimerBtn');
-            if (!btn) return;
-            if (window.selectedTaskId === window.timerState.taskId) {
-                btn.classList.add('active');
-                // 這裡文字會被 Loop 覆蓋，先給個初始值
-                btn.innerHTML = `<i class="fa-solid fa-stop"></i> <span>停止計時</span>`;
-            } else {
-                btn.classList.remove('active');
-                btn.innerHTML = `<i class="fa-solid fa-play"></i> <span>開始計時</span>`;
-            }
-        };
 
 
     </script>
