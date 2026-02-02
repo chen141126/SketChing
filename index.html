@@ -4626,7 +4626,7 @@ function calculateSchedule() {
             window.initTimerSystem(); // ★ 啟動計時器系統
             // ★★★ 新增這段：註冊 Service Worker ★★★
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('sw.js?=v2')
+                navigator.serviceWorker.register('sw.js')
                     .then(reg => console.log('SW registered!', reg))
                     .catch(err => console.log('SW failed', err));
             }
