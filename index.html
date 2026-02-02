@@ -757,48 +757,34 @@
         .timer-badge {
             position: absolute; 
             
-            /* ▼▼▼【在這裡調整卡片紅點的位置】▼▼▼ */
-            top: 4px;      /* 數值越大越往下 */
-            right: 8px;    /* 數值越大越往左 */
-            /* ▲▲▲ ----------------------- ▲▲▲ */
+            /* ★ 位置調整：往左、往下一點 */
+            top: 6px;      /* 原本 4px -> 改為 12px (往下) */
+            right: 8px;    /* 原本 8px -> 改為 12px (往左) */
 
             background: #C62828; color: white;
-            padding: 4px 8px; border-radius: 12px;
+            padding: 4px 10px; border-radius: 12px;
             font-size: 0.75rem; font-weight: 700;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            z-index: 20;
+            box-shadow: 0 4px 10px rgba(198, 40, 40, 0.3); /* 增加陰影讓它浮起來 */
+            z-index: 50; /* 確保在卡片之上 */
+            
             display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
             animation: pulse-red 2s infinite;
-            pointer-events: none; /* 讓點擊穿透，這樣點紅點也能打開卡片 */
-        }
-        
-        /* 2. 新增：全域計時懸浮膠囊 (Global Pill) */
-        /* 這是在沒看到卡片時，依然顯示在畫面上的計時器 */
-        #globalTimerPill {
-            position: fixed;
-            top: 6px;         /* 距離頂部 */
-            right: 6px;       /* 距離右邊 (避開選單按鈕) */
-            background: rgba(255, 255, 255, 0.95);
-            border: 2px solid #C62828;
-            color: #C62828;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 0.85rem; font-weight: 800;
-            display: none;     /* 預設隱藏 */
-            align-items: center; gap: 6px;
-            box-shadow: 0 4px 12px rgba(198, 40, 40, 0.2);
-            z-index: 4500;     /* 確保在最上層，但在 Modal 之下 */
+            
+            /* ★ 關鍵修改：允許點擊，變成按鈕 */
+            pointer-events: auto; 
             cursor: pointer;
             transition: transform 0.2s;
         }
-        #globalTimerPill:active { transform: scale(0.95); }
-        #globalTimerPill.active { display: flex; animation: pulse-border 2s infinite; }
-
+        .timer-badge:active { transform: scale(0.95); }
+        
+        .timer-badge small { font-size: 0.65rem; opacity: 0.9; font-weight: 500; }
+        
         @keyframes pulse-red {
             0% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(198, 40, 40, 0); }
+            70% { box-shadow: 0 0 0 8px rgba(198, 40, 40, 0); } /* 調整光暈大小 */
             100% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0); }
         }
+
         @keyframes pulse-border {
             0% { box-shadow: 0 0 0 0 rgba(198, 40, 40, 0.4); }
             50% { box-shadow: 0 0 0 6px rgba(198, 40, 40, 0); }
