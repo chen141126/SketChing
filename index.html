@@ -686,7 +686,7 @@
         /* 3. ★ 關鍵：收緊日期文字的行高，讓它真正垂直置中 */
         #statsDateDisplay {
             line-height: 1.1 !important; /* 收緊行距 */
-            margin-bottom: 2 !important; /* 確保沒有下邊距 */
+            margin-bottom: 2px !important; /* 確保沒有下邊距 */
             margin-top: 2px;             /* 微調：因為字體特性，通常要往下壓 1-2px 視覺才會正 */
         }
         
@@ -4819,86 +4819,6 @@ function calculateSchedule() {
         };
 
 
-        // ★ 修改重點：停止時只顯示時間，不寫入資料庫
-        window.stopTimer = function() {
-            if (!window.timerState.taskId) return;
-
-            const now = Date.now();
-            const start = window.timerState.startTime;
-            const diffMs = now - start;
-            
-            // 顯示結算畫面
-            const hh = Math.floor(diffMs / (1000 * 60 * 60)).toString().padStart(2, '0');
-            const mm = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
-            const ss = Math.floor((diffMs % (1000 * 60)) / 1000).toString().padStart(2, '0');
-            
-            document.getElementById('timerResultDisplay').textContent = `${hh}:${mm}:${ss}`;
-            document.getElementById('timerOverlay').classList.add('active');
-            
-            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-
-            // 清除狀態
-            window.timerState = { taskId: null, startTime: null };
-            localStorage.removeItem('sketching_timer_state');
-            
-            // 清除通知
-            if ("Notification" in window) {
-                try {
-                    navigator.serviceWorker.getRegistration().then(reg => {
-                        if(reg) reg.getNotifications({tag: 'timer-active'}).then(ns => ns.forEach(n => n.close()));
-                    });
-                } catch(e){}
-            }
-
-            // 更新 UI (紅點消失、按鈕變回開始)
-            window.updateBottomSheetTimerBtn();
-            window.renderCurrentTask();
-        };
-        
-        window.closeTimerOverlay = function() {
-            document.getElementById('timerOverlay').classList.remove('active');
-        };
-
-        // UI 循環 (不變)
-        let timerInterval = null;
-        window.startTimerLoop = function() {
-            if (timerInterval) clearInterval(timerInterval);
-            timerInterval = setInterval(() => {
-                if (!window.timerState.taskId) {
-                    clearInterval(timerInterval); return;
-                }
-                // Update Button
-                const btn = document.getElementById('sheetTimerBtn');
-                if (btn && window.selectedTaskId === window.timerState.taskId) {
-                    const diff = Date.now() - window.timerState.startTime;
-                    const mm = Math.floor(diff / 60000).toString().padStart(2, '0');
-                    const ss = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
-                    btn.querySelector('span').textContent = `停止 (${mm}:${ss})`;
-                }
-                // Update Badge
-                const badge = document.getElementById('activeTimerBadge');
-                if (badge) {
-                     const diff = Date.now() - window.timerState.startTime;
-                     const hh = Math.floor(diff / 3600000).toString().padStart(2, '0');
-                     const mm = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0');
-                     const ss = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
-                     const timeSpan = badge.querySelector('.timer-val');
-                     if(timeSpan) timeSpan.textContent = `${hh}:${mm}:${ss}`;
-                }
-            }, 1000);
-        };
-
-        window.updateBottomSheetTimerBtn = function() {
-            const btn = document.getElementById('sheetTimerBtn');
-            if (!btn) return;
-            if (window.selectedTaskId === window.timerState.taskId) {
-                btn.classList.add('active');
-                btn.innerHTML = `<i class="fa-solid fa-stop"></i> <span>停止 (計算中...)</span>`;
-            } else {
-                btn.classList.remove('active');
-                btn.innerHTML = `<i class="fa-solid fa-play"></i> <span>開始計時</span>`;
-            }
-        };
     </script>
     
     <div id="globalTimerPill" onclick="window.clickGlobalTimer()">
